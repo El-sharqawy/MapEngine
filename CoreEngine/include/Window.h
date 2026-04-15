@@ -10,6 +10,10 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
+#include "AnubisEnums.h"
+#include "InputManager.h"
+#include "TimerManager.h"
+
 #if defined(_WIN32)
 #define syserr(...) do { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while(0)
 #define syslog(...) do { fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout); } while(0)
@@ -17,13 +21,6 @@
 #define syserr(...) do { fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while(0)
 #define syslog(...) do { fprintf(stdout, ##__VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout); } while(0)
 #endif
-
-enum class EWindowMode
-{
-	MODE_WINDOWED,
-	MODE_FULLSCREEN,
-	MODE_BORDERLESS
-};
 
 class CWindow
 {
@@ -37,6 +34,10 @@ public:
 
 	EWindowMode GetWindowMode() const;
 	GLFWwindow* GetGLWindow() const;
+
+	void Update();
+	void ProcessInput(float deltaTime);
+	void RequestShutdown();
 
 	// User Input
 	void SetKeyboardKey(int32_t iKey, bool pressed);
@@ -57,7 +58,10 @@ protected: // protected static GLFW functions
 	static void keys_callback(GLFWwindow* window, GLint key, GLint scancode, GLint action, GLint mods);
 	static void mouse_button_callback(GLFWwindow* window, GLint button, GLint action, GLint mods);
 
-
+protected:
+	// Class Sigleton Members
+	CTimerManager timer_manager;
+	CInputManager input_manager;
 private:
 	GLFWwindow* m_pGLWindow = nullptr;
 	GLFWmonitor* m_pGLMonitor = nullptr;

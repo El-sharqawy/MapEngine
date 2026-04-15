@@ -127,6 +127,64 @@ GLFWwindow* CWindow::GetGLWindow() const
 	return (m_pGLWindow);
 }
 
+void CWindow::Update()
+{
+	while (glfwWindowShouldClose(GetGLWindow()) == false)
+	{
+		CTimerManager::Instance().Update();
+		float dt = CTimerManager::Instance().GetDeltaTimeF();
+
+		// 0. OS events
+		glfwPollEvents();
+
+		// 1. Gameplay / high-level input processing
+		ProcessInput(dt);
+		
+		// 2. Input state
+		CInputManager::Instance().Update(dt);		// finalize per-frame key/mouse state
+
+		// 3. End Frame
+		glfwSwapBuffers(GetGLWindow());
+	}
+}
+
+void CWindow::ProcessInput(float deltaTime)
+{
+	auto& input = CInputManager::Instance();
+
+	// Close The App
+	if (input.IsKeyPressed(GLFW_KEY_ESCAPE))
+	{
+		RequestShutdown();
+	}
+
+	// Toggle Windowed / FS
+	if (input.IsKeyPressed(GLFW_KEY_F11))
+	{
+		if (GetWindowMode() == EWindowMode::MODE_WINDOWED)
+		{
+			SetWindowMode(EWindowMode::MODE_FULLSCREEN);
+		}
+		else
+		{
+			SetWindowMode(EWindowMode::MODE_WINDOWED);
+		}
+	}
+
+	// Print some Data
+	if (input.IsKeyPressed(GLFW_KEY_H))
+	{
+		syslog("DeltaTime: %f", CTimerManager::Instance().GetDeltaTimeF());
+		syslog("ElapsedTime: %f", CTimerManager::Instance().GetElapsedTimeF());
+		syslog("FPS: %f", CTimerManager::Instance().GetFPSF());
+	}
+}
+
+void CWindow::RequestShutdown()
+{
+	glfwSetWindowShouldClose(GetGLWindow(), true);
+}
+
 void CWindow::SetKeyboardKey(int32_t iKey, bool pressed)
 {
 	if (iKey < 0 || iKey > GLFW_KEY_LAST)
@@ -135,10 +193,7 @@ void CWindow::SetKeyboardKey(int32_t iKey, bool pressed)
 		return;
 	}
 
-	if (iKey == GLFW_KEY_ESCAPE && pressed == GLFW_PRESS)
-	{
-		glfwSetWindowShouldClose(GetGLWindow(), true);
-	}
+	CInputManager::Instance().OnKey(iKey, pressed);
 }
 
 void CWindow::SetMouseKey(int32_t iKey, bool pressed)
@@ -148,16 +203,18 @@ void CWindow::SetMouseKey(int32_t iKey, bool pressed)
 		syserr("Invalid Input, key %d out of range", iKey);
 		return;
 	}
+
+	CInputManager::Instance().OnMouseButton(iKey, pressed);
 }
 
 void CWindow::SetMousePosition(float fX, float fY)
 {
-	// do nothing for now
+	CInputManager::Instance().OnMouseMove(Vector2D(fX, fY));
 }
 
 void CWindow::SetMouseScroll(float fMouseScrollVal)
 {
-	// do nothing for now
+	CInputManager::Instance().OnMouseScroll(fMouseScrollVal);
 }
 
 void CWindow::SetWindowMode(const EWindowMode& windowMode)
