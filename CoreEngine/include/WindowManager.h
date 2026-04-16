@@ -13,20 +13,14 @@
 #include "AnubisEnums.h"
 #include "InputManager.h"
 #include "TimerManager.h"
+#include "LogManager.h"
+#include "Camera.h"
 
-#if defined(_WIN32)
-#define syserr(...) do { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while(0)
-#define syslog(...) do { fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout); } while(0)
-#elif defined(__linux__)
-#define syserr(...) do { fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while(0)
-#define syslog(...) do { fprintf(stdout, ##__VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout); } while(0)
-#endif
-
-class CWindow
+class CWindowManager: public CSingleton<CWindowManager>
 {
 public:
-	CWindow() = default;
-	~CWindow();
+	CWindowManager() = default;
+	~CWindowManager();
 
 	void Destroy();
 
@@ -34,6 +28,11 @@ public:
 
 	EWindowMode GetWindowMode() const;
 	GLFWwindow* GetGLWindow() const;
+
+	int32_t GetWidth() const;
+	int32_t GetHeight() const;
+	float GetWidthF() const;
+	float GetHeightF() const;
 
 	void Update();
 	void ProcessInput(float deltaTime);
@@ -61,7 +60,9 @@ protected: // protected static GLFW functions
 protected:
 	// Class Sigleton Members
 	CTimerManager timer_manager;
+	CLogManager log_manager;
 	CInputManager input_manager;
+
 private:
 	GLFWwindow* m_pGLWindow = nullptr;
 	GLFWmonitor* m_pGLMonitor = nullptr;
@@ -78,4 +79,6 @@ private:
 	int32_t m_iWindowedHeight = 0;
 
 	EWindowMode m_eWindowMode = EWindowMode::MODE_WINDOWED;
+
+	std::unique_ptr<CCamera> m_pCamera = nullptr;
 };

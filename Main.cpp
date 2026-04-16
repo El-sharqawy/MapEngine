@@ -1,9 +1,9 @@
-#include "Window.h"
+#include "WindowManager.h"
 #include <memory>
 
 int main(int argc, char* argv[])
 {
-	std::unique_ptr<CWindow> pWindowApp = std::make_unique<CWindow>();
+	std::unique_ptr<CWindowManager> pWindowApp = std::make_unique<CWindowManager>();
 	if (pWindowApp->InitializeWindow("Hello World") == false)
 	{
 		syserr("Failed to Initialize Window");

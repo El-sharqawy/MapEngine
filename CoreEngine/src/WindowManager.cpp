@@ -1,11 +1,11 @@
-#include "Window.h"
+#include "WindowManager.h"
 
-CWindow::~CWindow()
+CWindowManager::~CWindowManager()
 {
 	Destroy();
 }
 
-void CWindow::Destroy()
+void CWindowManager::Destroy()
 {
 	if (m_pGLWindow != nullptr)
 	{
@@ -13,7 +13,7 @@ void CWindow::Destroy()
 	}
 }
 
-bool CWindow::InitializeWindow(const std::string& stWindowTitle)
+bool CWindowManager::InitializeWindow(const std::string& stWindowTitle)
 {
 	syslog("We are all alone on life's journey, held captive by the limitations of human consciousness.");
 
@@ -114,20 +114,47 @@ bool CWindow::InitializeWindow(const std::string& stWindowTitle)
 #if defined(_WIN32) || defined(_WIN64)
 	timeBeginPeriod(1); // Set system timer resolution to 1ms
 #endif
+
+	// Initialize Systems
+	CLogManager::Instance().Initialize();
+
+	m_pCamera = std::make_unique<CCamera>();
+	m_pCamera->Initialize(CAMERA_PERSPECTIVE);
+
 	return (true);
 }
 
-EWindowMode CWindow::GetWindowMode() const
+EWindowMode CWindowManager::GetWindowMode() const
 {
 	return (m_eWindowMode);
 }
 
-GLFWwindow* CWindow::GetGLWindow() const
+GLFWwindow* CWindowManager::GetGLWindow() const
 {
 	return (m_pGLWindow);
 }
 
-void CWindow::Update()
+int32_t CWindowManager::GetWidth() const
+{
+	return m_iWidth;
+}
+
+int32_t CWindowManager::GetHeight() const
+{
+	return m_iHeight;
+}
+
+float CWindowManager::GetWidthF() const
+{
+	return static_cast<float>(GetWidth());
+}
+
+float CWindowManager::GetHeightF() const
+{
+	return static_cast<float>(GetHeight());
+}
+
+void CWindowManager::Update()
 {
 	while (glfwWindowShouldClose(GetGLWindow()) == false)
 	{
@@ -143,12 +170,15 @@ void CWindow::Update()
 		// 2. Input state
 		CInputManager::Instance().Update(dt);		// finalize per-frame key/mouse state
 
+		// 3. Update Camera
+		m_pCamera->Update();
+
 		// 3. End Frame
 		glfwSwapBuffers(GetGLWindow());
 	}
 }
 
-void CWindow::ProcessInput(float deltaTime)
+void CWindowManager::ProcessInput(float deltaTime)
 {
 	auto& input = CInputManager::Instance();
 
@@ -178,14 +208,16 @@ void CWindow::ProcessInput(float deltaTime)
 		syslog("ElapsedTime: %f", CTimerManager::Instance().GetElapsedTimeF());
 		syslog("FPS: %f", CTimerManager::Instance().GetFPSF());
 	}
+
+
 }
 
-void CWindow::RequestShutdown()
+void CWindowManager::RequestShutdown()
 {
 	glfwSetWindowShouldClose(GetGLWindow(), true);
 }
 
-void CWindow::SetKeyboardKey(int32_t iKey, bool pressed)
+void CWindowManager::SetKeyboardKey(int32_t iKey, bool pressed)
 {
 	if (iKey < 0 || iKey > GLFW_KEY_LAST)
 	{
@@ -196,7 +228,7 @@ void CWindow::SetKeyboardKey(int32_t iKey, bool pressed)
 	CInputManager::Instance().OnKey(iKey, pressed);
 }
 
-void CWindow::SetMouseKey(int32_t iKey, bool pressed)
+void CWindowManager::SetMouseKey(int32_t iKey, bool pressed)
 {
 	if (iKey < 0 || iKey > GLFW_MOUSE_BUTTON_LAST)
 	{
@@ -207,17 +239,17 @@ void CWindow::SetMouseKey(int32_t iKey, bool pressed)
 	CInputManager::Instance().OnMouseButton(iKey, pressed);
 }
 
-void CWindow::SetMousePosition(float fX, float fY)
+void CWindowManager::SetMousePosition(float fX, float fY)
 {
 	CInputManager::Instance().OnMouseMove(Vector2D(fX, fY));
 }
 
-void CWindow::SetMouseScroll(float fMouseScrollVal)
+void CWindowManager::SetMouseScroll(float fMouseScrollVal)
 {
 	CInputManager::Instance().OnMouseScroll(fMouseScrollVal);
 }
 
-void CWindow::SetWindowMode(const EWindowMode& windowMode)
+void CWindowManager::SetWindowMode(const EWindowMode& windowMode)
 {
 	m_eWindowMode = windowMode;
 	if (windowMode == EWindowMode::MODE_WINDOWED)
@@ -235,7 +267,7 @@ void CWindow::SetWindowMode(const EWindowMode& windowMode)
 	}
 }
 
-void CWindow::ResizeWindow(int32_t iWidth, int32_t iHeight)
+void CWindowManager::ResizeWindow(int32_t iWidth, int32_t iHeight)
 {
 	m_iWidth = iWidth;
 	m_iHeight = iHeight;
@@ -244,10 +276,10 @@ void CWindow::ResizeWindow(int32_t iWidth, int32_t iHeight)
 	glViewport(0, 0, iWidth, iHeight);
 }
 
-void CWindow::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height)
+void CWindowManager::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height)
 {
 	// Store the raw window pointer.
-	CWindow* appWindow = (CWindow*)glfwGetWindowUserPointer(window);
+	CWindowManager* appWindow = (CWindowManager*)glfwGetWindowUserPointer(window);
 	if (!appWindow)
 	{
 		return;
@@ -256,10 +288,10 @@ void CWindow::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint h
 	appWindow->ResizeWindow(width, height);
 }
 
-void CWindow::mouse_callback(GLFWwindow* window, GLdouble xpos, GLdouble ypos)
+void CWindowManager::mouse_callback(GLFWwindow* window, GLdouble xpos, GLdouble ypos)
 {
 	// Store the raw window pointer.
-	CWindow* appWindow = (CWindow*)glfwGetWindowUserPointer(window);
+	CWindowManager* appWindow = (CWindowManager*)glfwGetWindowUserPointer(window);
 	if (!appWindow)
 	{
 		return;
@@ -268,10 +300,10 @@ void CWindow::mouse_callback(GLFWwindow* window, GLdouble xpos, GLdouble ypos)
 	appWindow->SetMousePosition(static_cast<GLfloat>(xpos), static_cast<GLfloat>(ypos));
 }
 
-void CWindow::scroll_callback(GLFWwindow* window, GLdouble xoffset, GLdouble yoffset)
+void CWindowManager::scroll_callback(GLFWwindow* window, GLdouble xoffset, GLdouble yoffset)
 {
 	// Store the raw window pointer.
-	CWindow* appWindow = (CWindow*)glfwGetWindowUserPointer(window);
+	CWindowManager* appWindow = (CWindowManager*)glfwGetWindowUserPointer(window);
 	if (!appWindow)
 	{
 		return;
@@ -280,10 +312,10 @@ void CWindow::scroll_callback(GLFWwindow* window, GLdouble xoffset, GLdouble yof
 	appWindow->SetMouseScroll(static_cast<GLfloat>(yoffset));
 }
 
-void CWindow::keys_callback(GLFWwindow* window, GLint key, GLint scancode, GLint action, GLint mods)
+void CWindowManager::keys_callback(GLFWwindow* window, GLint key, GLint scancode, GLint action, GLint mods)
 {
 	// Store the raw window pointer.
-	CWindow* appWindow = (CWindow*)glfwGetWindowUserPointer(window);
+	CWindowManager* appWindow = (CWindowManager*)glfwGetWindowUserPointer(window);
 	if (!appWindow)
 	{
 		return;
@@ -292,10 +324,10 @@ void CWindow::keys_callback(GLFWwindow* window, GLint key, GLint scancode, GLint
 	appWindow->SetKeyboardKey(key, action);
 }
 
-void CWindow::mouse_button_callback(GLFWwindow* window, GLint button, GLint action, GLint mods)
+void CWindowManager::mouse_button_callback(GLFWwindow* window, GLint button, GLint action, GLint mods)
 {
 	// Store the raw window pointer.
-	CWindow* appWindow = (CWindow*)glfwGetWindowUserPointer(window);
+	CWindowManager* appWindow = (CWindowManager*)glfwGetWindowUserPointer(window);
 	if (!appWindow)
 	{
 		return;

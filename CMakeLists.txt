@@ -49,6 +49,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 # 1. Add the Libraries first so other things can link to it
 add_subdirectory(AnubisMath)
 add_subdirectory(CoreEngine)
+add_subdirectory(AnubisRenderer)
 
 add_executable(MapEngine)
 
@@ -82,6 +83,7 @@ endif()
 target_link_libraries(MapEngine PUBLIC 
     AnubisMath
     CoreEngine
+    AnubisRenderer
 )
 
 if (WIN32)

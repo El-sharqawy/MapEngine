@@ -2,7 +2,8 @@
 
 #include <glad/glad.h>
 #include <glm/detail/type_mat4x4.hpp>
-#include "Vector4.h"
+#include "TypeVector4.h"
+#include "TypeVector3.h"
 
 /**
  * @brief Represents a 4x4 matrix of single-precision floating-point numbers (GLfloat).
