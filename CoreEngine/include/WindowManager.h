@@ -1,20 +1,23 @@
 #pragma once
 
-#if defined(_WIN32)
-#include <windows.h>
-#include <mmsystem.h> // <<--- Here we go
-#pragma comment(lib, "winmm.lib")
-#endif
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <string>
 
 #include "AnubisEnums.h"
-#include "InputManager.h"
+#include "Camera.h"
+
+// singleton classes
+#include <Singleton.h>
 #include "TimerManager.h"
 #include "LogManager.h"
-#include "Camera.h"
+#include "InputManager.h"
+#include "ShadersManager.h"
+#include "CameraManager.h"
+#include "StateManager.h"
+
+#include "DebugRenderer.h"
+#include "RendererManager.h"
 
 class CWindowManager: public CSingleton<CWindowManager>
 {
@@ -49,6 +52,7 @@ public:
 protected: // protected static GLFW functions
 
 	void ResizeWindow(int32_t iWidth, int32_t iHeight);
+	void InitializeSubSystems();
 
 	// glfw: whenever the window size changed (by OS or user resize) this callback function executes
 	static void framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height);
@@ -62,6 +66,13 @@ protected:
 	CTimerManager timer_manager;
 	CLogManager log_manager;
 	CInputManager input_manager;
+	CStateManager StateManager;
+
+	// Renderer
+	CCameraManager CameraManager;
+	CShadersManager ShadersManager;
+	CDebugRenderer DebugRender;
+	CRendererManager RendererManager;
 
 private:
 	GLFWwindow* m_pGLWindow = nullptr;

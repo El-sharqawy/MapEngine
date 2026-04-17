@@ -28,9 +28,7 @@ void CUniformBufferObject::Initialize(GLsizeiptr bufferSize, EUniformBufferBindi
 		return;
 	}
 
-	m_uiBufferID = Anubis::GL::CreateBuffer();
-
-	if (!m_uiBufferID)
+	if (!Anubis::GL::CreateBuffer(m_uiBufferID))
 	{
 		syserr("Failed to create Uniform Buffer Object");
 		return;
@@ -126,7 +124,7 @@ void CUniformBufferObject::Update(const void* pData, GLsizeiptr size, GLintptr o
 			return;
 		}
 
-		m_uiBufferID = Anubis::GL::CreateBuffer(); // Attemp to Recreate buffer
+		Anubis::GL::CreateBuffer(m_uiBufferID); // Attemp to Recreate buffer
 
 		GLsizeiptr newSize = size + offset;
 

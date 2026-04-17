@@ -60,3 +60,5 @@ if(NOT MSVC)
     $<$<CONFIG:Release>:-O3>
 )
 endif()
+
+add_compile_options(/showIncludes)

@@ -3,6 +3,11 @@
 #include <stdarg.h>
 #include <sstream>
 
+CLogManager::CLogManager()
+{
+    Initialize();
+}
+
 /**
  * @brief Initializes the log manager by opening the log files.
  *

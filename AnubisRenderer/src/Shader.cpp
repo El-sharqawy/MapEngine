@@ -1,9 +1,7 @@
-#include "Stdafx.h"
 #include "Shader.h"
-#include "LogManager.h"
-#include "CoreUtils.h"
-#include "StateManager.h"
 #include "GLUtils.h"
+#include "LogManager.h"
+#include "StateManager.h"
 
 /**
  * Creates a new shader with given name.

@@ -1,9 +1,5 @@
 #pragma once
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#endif
-
 #include "TypeMatrix4.h"
 #include "TypeVector3.h"
 #include "TypeVector2.h"
@@ -167,7 +163,7 @@ public:
 	 * @param camDirection The direction of movement (e.g., DIRECTION_FORWARD).
 	 * @param dDeltaTime The time passed since the last frame, in seconds.
 	 */
-	void ProcessKeyboard(GLubyte camDirection, GLdouble dDeltaTime);
+	void ProcessKeyboard(GLubyte camDirection, float fDeltaTime);
 
 	/**
 	 * @brief Processes mouse movement for camera rotation (Pitch and Yaw).

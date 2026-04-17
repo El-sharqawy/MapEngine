@@ -19,7 +19,7 @@ public:
 	 * @brief Constructor: Opens the log file immediately (RAII).
 	 * * The file handle is managed by std::ofstream.
 	 */
-	CLogManager() = default;
+	CLogManager();
 
 	/**
 	 * @brief Destructor: Automatically closes the log file (RAII).

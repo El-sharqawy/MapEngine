@@ -7,6 +7,24 @@ CWindowManager::~CWindowManager()
 
 void CWindowManager::Destroy()
 {
+	// 1. Shutdown Renderer Manager
+	CRendererManager::Instance().Destroy();
+
+	// 2. Shutdown Debug Manager
+	CDebugRenderer::Instance().Destroy();
+
+	// 4. Shutdown Shaders Manager
+	CShadersManager::Instance().Destroy();
+
+	// 5. Shutdown State Manager
+	CStateManager::Instance().Destroy();
+
+	// 3. Shutdown Camera Manager
+	CCameraManager::Instance().Destroy();
+
+	// 6. Shutdown Log Manager
+	CLogManager::Instance().Destroy();
+
 	if (m_pGLWindow != nullptr)
 	{
 		glfwDestroyWindow(m_pGLWindow);
@@ -26,7 +44,7 @@ bool CWindowManager::InitializeWindow(const std::string& stWindowTitle)
 	// Setup OpenGL Version (4.6) and Enable core profile (Delete Deperecated functions)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // 4
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6); // 6
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // GLFW_OPENGL_ANY_PROFILE
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // GLFW_OPENGL_ANY_PROFILE, exclude legacy code
 
 	// Enable Multi Sampling, for a smoother drawing
 	glfwWindowHint(GLFW_SAMPLES, 4);
@@ -112,14 +130,11 @@ bool CWindowManager::InitializeWindow(const std::string& stWindowTitle)
 	glfwShowWindow(GetGLWindow());
 
 #if defined(_WIN32) || defined(_WIN64)
-	timeBeginPeriod(1); // Set system timer resolution to 1ms
+	// timeBeginPeriod(1); // Set system timer resolution to 1ms
 #endif
 
 	// Initialize Systems
-	CLogManager::Instance().Initialize();
-
-	m_pCamera = std::make_unique<CCamera>();
-	m_pCamera->Initialize(CAMERA_PERSPECTIVE);
+	InitializeSubSystems();
 
 	return (true);
 }
@@ -171,25 +186,38 @@ void CWindowManager::Update()
 		CInputManager::Instance().Update(dt);		// finalize per-frame key/mouse state
 
 		// 3. Update Camera
-		m_pCamera->Update();
+		CCameraManager::Instance().UpdateCameras();
 
-		// 3. End Frame
+		// 4. Clear Buffers
+		SVector4Df fogColor = { 0.3f, 0.3f, 0.3f, 1.0f };
+		glClearColor(fogColor.x, fogColor.y, fogColor.z, fogColor.w);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// 5. Renderer Manager (Draw all 3D objects)
+		CRendererManager::Instance().Update(); // Draw Terrain, Meshes, etc.
+		CDebugRenderer::Instance().RenderAll(); // Draw Lines on top of 3D
+
+		// 6. End Frame
 		glfwSwapBuffers(GetGLWindow());
 	}
+
+	// CleanUP
 }
 
 void CWindowManager::ProcessInput(float deltaTime)
 {
-	auto& input = CInputManager::Instance();
+	auto& inputMgr = CInputManager::Instance();
+	auto& timerMgr = CTimerManager::Instance();
+	auto& cameraMgr = CCameraManager::Instance();
 
 	// Close The App
-	if (input.IsKeyPressed(GLFW_KEY_ESCAPE))
+	if (inputMgr.IsKeyPressed(GLFW_KEY_ESCAPE))
 	{
 		RequestShutdown();
 	}
 
 	// Toggle Windowed / FS
-	if (input.IsKeyPressed(GLFW_KEY_F11))
+	if (inputMgr.IsKeyPressed(GLFW_KEY_F11))
 	{
 		if (GetWindowMode() == EWindowMode::MODE_WINDOWED)
 		{
@@ -202,18 +230,38 @@ void CWindowManager::ProcessInput(float deltaTime)
 	}
 
 	// Print some Data
-	if (input.IsKeyPressed(GLFW_KEY_H))
+	if (inputMgr.IsKeyPressed(GLFW_KEY_H))
 	{
-		syslog("DeltaTime: %f", CTimerManager::Instance().GetDeltaTimeF());
-		syslog("ElapsedTime: %f", CTimerManager::Instance().GetElapsedTimeF());
-		syslog("FPS: %f", CTimerManager::Instance().GetFPSF());
+		syslog("DeltaTime: %f", timerMgr.GetDeltaTimeF());
+		syslog("ElapsedTime: %f", timerMgr.GetElapsedTimeF());
+		syslog("FPS: %f", timerMgr.GetFPSF());
 	}
 
+	// Camera Movement
+	float DeltaTime = timerMgr.GetDeltaTimeF();
+	CCamera* pCamera = cameraMgr.GetCurrentCamera();
 
+	if (inputMgr.IsKeyDown(GLFW_KEY_W))
+	{
+		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_FORWARD, DeltaTime);
+	}
+	if (inputMgr.IsKeyDown(GLFW_KEY_S))
+	{
+		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_BACKWARD, DeltaTime);
+	}
+	if (inputMgr.IsKeyDown(GLFW_KEY_A))
+	{
+		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_LEFT, DeltaTime);
+	}
+	if (inputMgr.IsKeyDown(GLFW_KEY_D))
+	{
+		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_RIGHT, DeltaTime);
+	}
 }
 
 void CWindowManager::RequestShutdown()
 {
+	// 1. Request GLFW to close the window -- 
 	glfwSetWindowShouldClose(GetGLWindow(), true);
 }
 
@@ -274,6 +322,24 @@ void CWindowManager::ResizeWindow(int32_t iWidth, int32_t iHeight)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, iWidth, iHeight);
+}
+
+void CWindowManager::InitializeSubSystems()
+{
+	// 0. Initialize OpenGL Debugging (if in debug mode)
+	CStateManager::Instance().Initialize();
+
+	// 1. Initialize Shaders Manager
+	CShadersManager::Instance().Initialize();
+
+	// 2. Initialize Camera Manager
+	CCameraManager::Instance().Initialize();
+
+	// 3. Initialize Debug Renderer
+	CDebugRenderer::Instance().Initialize();
+
+	// 4. Initialize Renderer Manager
+	CRendererManager::Instance().Initialize();
 }
 
 void CWindowManager::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height)

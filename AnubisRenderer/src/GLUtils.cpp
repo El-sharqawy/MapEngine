@@ -82,6 +82,367 @@ void Anubis::GL::DeleteTexture(GLuint& uiTextureID)
 	}
 }
 
+
+/**
+ * @brief Creates a single OpenGL buffer and returns its ID.
+ *
+ * Uses glCreateBuffers (DSA) on modern drivers or glGenBuffers (Legacy)
+ * as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiBufferID Reference to store the created buffer ID.
+ * @return true if the buffer was created successfully, false otherwise.
+ */
+bool Anubis::GL::CreateBuffer(GLuint& uiBufferID)
+{
+	// 1. Prevent leaks by cleaning up existing ID
+	Anubis::GL::SafeDeleteGLBuffer(uiBufferID);
+
+	// 2. Create new ID
+	if (Anubis::GL::IsGLVersionHigher(4, 5))
+	{
+		glCreateBuffers(1, &uiBufferID);
+	}
+	else
+	{
+		glGenBuffers(1, &uiBufferID);
+	}
+
+	if (uiBufferID == 0)
+	{
+		syserr("Renderer: Failed to generate GL buffer!");
+		return (false);
+	}
+	return (true);
+}
+
+/**
+ * @brief Creates a single OpenGL Vertex Array Object (VAO) and returns its ID.
+ *
+ * Uses glCreateVertexArrays (DSA) on modern drivers or glGenVertexArrays (Legacy)
+ * as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiVAOID Reference to store the created VAO ID.
+ * @return true if the VAO was created successfully, false otherwise.
+ */
+bool Anubis::GL::CreateVertexArray(GLuint& uiVAOID)
+{
+	// 1. Prevent leaks by cleaning up existing ID
+	SafeDeleteGLVertexArray(uiVAOID);
+
+	// 2. Create new ID
+	if (IsGLVersionHigher(4, 5))
+	{
+		glCreateVertexArrays(1, &uiVAOID);
+	}
+	else
+	{
+		glGenVertexArrays(1, &uiVAOID);
+	}
+
+	if (uiVAOID == 0)
+	{
+		syserr("Renderer: Failed to generate VAO!");
+		return (false);
+	}
+	return (true);
+}
+
+/**
+ * @brief Creates multiple OpenGL buffers and returns their IDs.
+ *
+ * Uses glCreateBuffers (DSA) on modern drivers or glGenBuffers (Legacy)
+ * as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiBuffersIDs Pointer to an array to store the created buffer IDs.
+ * @param uiCount Number of buffers to create.
+ * @return true if all buffers were created successfully, false otherwise.
+ */
+bool Anubis::GL::CreateBuffers(GLuint* uiBuffersIDs, GLsizei uiCount)
+{
+	SafeDeleteGLBuffers(uiBuffersIDs, uiCount);
+
+	if (IsGLVersionHigher(4, 5))
+	{
+		glCreateBuffers(uiCount, uiBuffersIDs);
+	}
+	else
+	{
+		glGenBuffers(uiCount, uiBuffersIDs);
+	}
+
+	for (GLsizei i = 0; i < uiCount; ++i)
+	{
+		if (uiBuffersIDs[i] == 0)
+		{
+			syserr("Renderer: Failed to create GPU buffer at index %d", i);
+			return (false);
+		}
+	}
+	return (true);
+}
+
+/**
+ * @brief Creates multiple OpenGL Vertex Array Objects (VAOs) and returns their IDs.
+ *
+ * Uses glCreateVertexArrays (DSA) on modern drivers or glGenVertexArrays (Legacy)
+ * as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiVAOsIDs Pointer to an array to store the created VAO IDs.
+ * @param uiCount Number of VAOs to create.
+ * @return true if all VAOs were created successfully, false otherwise.
+ */
+bool Anubis::GL::CreateVertexArrays(GLuint* uiVAOsIDs, GLsizei uiCount)
+{
+	SafeDeleteGLVertexArrays(uiVAOsIDs, uiCount);
+
+	if (IsGLVersionHigher(4, 5))
+	{
+		glCreateVertexArrays(uiCount, uiVAOsIDs);
+	}
+	else
+	{
+		glGenVertexArrays(uiCount, uiVAOsIDs);
+	}
+
+	for (GLsizei i = 0; i < uiCount; ++i)
+	{
+		if (uiVAOsIDs[i] == 0)
+		{
+			syserr("Renderer: Failed to create GPU Vertex Array at index %d", i);
+			return (false);
+		}
+	}
+
+	return (true);
+}
+
+/**
+ * @brief Safely deletes an OpenGL buffer and resets its ID.
+ *
+ * @param uiBufferID Reference to the buffer ID to delete.
+ */
+void Anubis::GL::SafeDeleteGLBuffer(GLuint& uiBufferID)
+{
+	if (uiBufferID)
+	{
+		glDeleteBuffers(1, &uiBufferID);
+		uiBufferID = 0;
+	}
+}
+
+/**
+ * @brief Safely deletes an OpenGL Vertex Array Object (VAO) and resets its ID.
+ *
+ * @param uiVAOID Reference to the VAO ID to delete.
+ */
+void Anubis::GL::SafeDeleteGLVertexArray(GLuint& uiVAOID)
+{
+	if (uiVAOID)
+	{
+		glDeleteVertexArrays(1, &uiVAOID);
+		uiVAOID = 0;
+	}
+}
+
+/**
+ * @brief Safely deletes multiple OpenGL buffers and resets their IDs.
+ *
+ * @param uiBuffersIDs Pointer to the array of buffer IDs to delete.
+ * @param uiCount Number of buffers to delete.
+ */
+void Anubis::GL::SafeDeleteGLBuffers(GLuint* uiBuffersIDs, GLsizei uiCount)
+{
+	if (uiBuffersIDs == nullptr || uiCount <= 0)
+		return;
+
+	// OpenGL spec: "Unused names in buffers are silently ignored, as is the value 0."
+	glDeleteBuffers(uiCount, uiBuffersIDs);
+
+	// Always reset to 0 so the rest of your engine knows they are gone
+	for (GLsizei i = 0; i < uiCount; ++i)
+	{
+		uiBuffersIDs[i] = 0;
+	}
+}
+
+/**
+ * @brief Safely deletes multiple OpenGL Vertex Array Objects (VAOs) and resets their IDs.
+ *
+ * @param uiVAOsIDs Pointer to the array of VAO IDs to delete.
+ * @param uiCount Number of VAOs to delete.
+ */
+void Anubis::GL::SafeDeleteGLVertexArrays(GLuint* uiVAOsIDs, GLsizei uiCount)
+{
+	if (uiVAOsIDs == nullptr || uiCount <= 0)
+		return;
+
+	// OpenGL spec: "Unused names in vertex arrays are silently ignored, as is the value 0."
+	glDeleteVertexArrays(uiCount, uiVAOsIDs);
+
+	// Always reset to 0 so the rest of your engine knows they are gone
+	for (GLsizei i = 0; i < uiCount; ++i)
+	{
+		uiVAOsIDs[i] = 0;
+	}
+}
+
+/**
+ * @brief Creates a GPU buffer group with VBO and EBO.
+ *
+ * This function initializes the Vertex Buffer Object (VBO) and Element Buffer Object (EBO)
+ * for the provided GPU buffer group structure. It ensures that any existing buffers are
+ * safely deleted before creating new ones.
+ *
+ * Uses glCreateBuffers (DSA) on modern drivers or glGenBuffers (Legacy)
+ * as a fallback to ensure cross-version compatibility.
+ *
+ * @param bufferGroup Reference to the GPUBuffersGroup structure to initialize.
+ * @return true if the buffer group was created successfully, false otherwise.
+ */
+bool Anubis::GL::CreateGPUBufferGroup(SGPUBuffersGroup& bufferGroup)
+{
+	// Prevent Leaks: Clean up if this group was already used
+	SafeDeleteGPUBufferGroup(bufferGroup);
+
+	// We pass the address of the first element (&group.uiVBO) 
+	// and tell OpenGL to fill 2 slots, Batch Create
+	if (IsGLVersionHigher(4, 5))
+	{
+		glCreateBuffers(2, &bufferGroup.uiVBO);
+	}
+	else
+	{
+		glGenBuffers(2, &bufferGroup.uiVBO);
+	}
+
+	// If the first one is 0, the driver failed to provide IDs
+	if (bufferGroup.uiVBO == 0)
+	{
+		syserr("Failed to generate Buffer Group!");
+		return false;
+	}
+
+	return (true);
+}
+
+/**
+ * @brief Safely deletes the GPU buffer group and resets its IDs.
+ *
+ * @param bufferGroup Reference to the GPUBuffersGroup structure to delete.
+ */
+void Anubis::GL::SafeDeleteGPUBufferGroup(SGPUBuffersGroup& bufferGroup)
+{
+	// glDeleteBuffers safely ignores 0, so we can just check if either is non-zero
+	if (bufferGroup.uiVBO != 0) // Checking the first one is usually enough
+	{
+		glDeleteBuffers(2, &bufferGroup.uiVBO);
+		// Clear all IDs in one go
+		memset(&bufferGroup.uiVBO, 0, sizeof(GLuint) * 2);
+	}
+}
+
+/**
+ * @brief Sets up the vertex buffer attributes for line vertices.
+ *
+ * This function configures the vertex attribute pointers for line vertices
+ * in the specified Vertex Array Object (VAO).
+ *
+ * Uses (DSA) on modern drivers or (Legacy) as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiVAO The Vertex Array Object to set up.
+ */
+void Anubis::GL::SetupVertexBufferAttributesLines(GLuint uiVAO)
+{
+	// Define attribute layout
+	const GLint iPosition = 0;
+	const GLint iColors = 1;
+
+	if (IsGLVersionHigher(4, 5))
+	{
+		// Attributes
+		glEnableVertexArrayAttrib(uiVAO, iPosition); // Position
+		glVertexArrayAttribFormat(uiVAO, iPosition, 3, GL_FLOAT, GL_FALSE, offsetof(SLinesVertex, m_v3Position));
+		glVertexArrayAttribBinding(uiVAO, iPosition, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iColors); // Colors
+		glVertexArrayAttribFormat(uiVAO, iColors, 4, GL_FLOAT, GL_FALSE, offsetof(SLinesVertex, m_v4Color));
+		glVertexArrayAttribBinding(uiVAO, iColors, 0);
+	}
+	else
+	{
+		// --- LEGACY PATH ---
+		glBindVertexArray(uiVAO);
+
+		// Define Attributes (While m_uiMainVBO is bound to GL_ARRAY_BUFFER)
+		glEnableVertexAttribArray(iPosition); // Position
+		glVertexAttribPointer(iPosition, 3, GL_FLOAT, GL_FALSE, sizeof(SLinesVertex), (void*)offsetof(SLinesVertex, m_v3Position));
+
+		glEnableVertexAttribArray(iColors); // Colors Coords
+		glVertexAttribPointer(iColors, 4, GL_FLOAT, GL_FALSE, sizeof(SLinesVertex), (void*)offsetof(SLinesVertex, m_v4Color));
+
+		glBindVertexArray(0);
+	}
+}
+
+/**
+ * @brief Sets up the vertex buffer attributes for standard vertices.
+ *
+ * This function configures the vertex attribute pointers for standard vertices
+ * in the specified Vertex Array Object (VAO).
+ *
+ * Uses (DSA) on modern drivers or (Legacy) as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiVAO The Vertex Array Object to set up.
+ */
+void Anubis::GL::SetupVertexBufferAttributesVertex(GLuint uiVAO)
+{
+	// Define attribute layout
+	const GLint iPosition = 0;
+	const GLint iNormals = 1;
+	const GLint iTexCoord = 2;
+	const GLint iColors = 3;
+
+	if (IsGLVersionHigher(4, 5))
+	{
+		// Attributes
+		glEnableVertexArrayAttrib(uiVAO, iPosition); // Position
+		glVertexArrayAttribFormat(uiVAO, iPosition, 3, GL_FLOAT, GL_FALSE, offsetof(SVertex, m_v3Position));
+		glVertexArrayAttribBinding(uiVAO, iPosition, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iNormals); // Normals
+		glVertexArrayAttribFormat(uiVAO, iNormals, 3, GL_FLOAT, GL_FALSE, offsetof(SVertex, m_v3Normals));
+		glVertexArrayAttribBinding(uiVAO, iNormals, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iTexCoord); // Tex Coords
+		glVertexArrayAttribFormat(uiVAO, iTexCoord, 2, GL_FLOAT, GL_FALSE, offsetof(SVertex, m_v2TexCoords));
+		glVertexArrayAttribBinding(uiVAO, iTexCoord, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iColors); // Colors
+		glVertexArrayAttribFormat(uiVAO, iColors, 4, GL_FLOAT, GL_FALSE, offsetof(SVertex, m_v4Color));
+		glVertexArrayAttribBinding(uiVAO, iColors, 0);
+	}
+	else
+	{
+		// --- LEGACY PATH ---
+		glBindVertexArray(uiVAO);
+
+		// Define Attributes (While m_uiMainVBO is bound to GL_ARRAY_BUFFER)
+		glEnableVertexAttribArray(iPosition); // Position
+		glVertexAttribPointer(iPosition, 3, GL_FLOAT, GL_FALSE, sizeof(SVertex), (void*)offsetof(SVertex, m_v3Position));
+
+		glEnableVertexAttribArray(iNormals); // Normals
+		glVertexAttribPointer(iNormals, 3, GL_FLOAT, GL_FALSE, sizeof(SVertex), (void*)offsetof(SVertex, m_v3Normals));
+
+		glEnableVertexAttribArray(iTexCoord); // Texture Coords
+		glVertexAttribPointer(iTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(SVertex), (void*)offsetof(SVertex, m_v2TexCoords));
+
+		glEnableVertexAttribArray(iColors); // Colors Coords
+		glVertexAttribPointer(iColors, 4, GL_FLOAT, GL_FALSE, sizeof(SVertex), (void*)offsetof(SVertex, m_v4Color));
+
+		glBindVertexArray(0);
+	}
+}
+
 /**
  * @brief Creates a single OpenGL texture and returns its ID.
  *

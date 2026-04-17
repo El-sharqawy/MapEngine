@@ -456,9 +456,9 @@ glm::mat4 CCamera::GetViewProjectionMatrixGLM()
  * @param camDirection The direction of movement (e.g., DIRECTION_FORWARD).
  * @param fDeltaTime The time passed since the last frame, in seconds.
  */
-void CCamera::ProcessKeyboard(GLubyte camDirection, GLdouble dDeltaTime)
+void CCamera::ProcessKeyboard(GLubyte camDirection, float fDeltaTime)
 {
-	const GLfloat fVelocity = m_fCameraSpeed * static_cast<GLfloat>(dDeltaTime);
+	const GLfloat fVelocity = m_fCameraSpeed * fDeltaTime;
 	switch (camDirection)
 	{
 	case DIRECTION_FORWARD:
