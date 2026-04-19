@@ -133,6 +133,16 @@ bool CWindowManager::InitializeWindow(const std::string& stWindowTitle)
 	// timeBeginPeriod(1); // Set system timer resolution to 1ms
 #endif
 
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback([](GLenum source, GLenum type, GLuint id,
+		GLenum severity, GLsizei, const GLchar* message, const void*)
+		{
+			if (severity == GL_DEBUG_SEVERITY_HIGH || severity == GL_DEBUG_SEVERITY_MEDIUM)
+				printf("[GL DEBUG] %s\n", message);
+		}, nullptr);
+
+
 	// Initialize Systems
 	InitializeSubSystems();
 
@@ -186,7 +196,7 @@ void CWindowManager::Update()
 		CInputManager::Instance().Update(dt);		// finalize per-frame key/mouse state
 
 		// 3. Update Camera
-		CCameraManager::Instance().UpdateCameras();
+		// CCameraManager::Instance().UpdateCameras();
 
 		// 4. Clear Buffers
 		SVector4Df fogColor = { 0.3f, 0.3f, 0.3f, 1.0f };
@@ -196,6 +206,10 @@ void CWindowManager::Update()
 		// 5. Renderer Manager (Draw all 3D objects)
 		CRendererManager::Instance().Update(); // Draw Terrain, Meshes, etc.
 		CDebugRenderer::Instance().RenderAll(); // Draw Lines on top of 3D
+
+		MapManager.Update(dt, m_iWidth, m_iHeight);
+
+		MapManager.Render(m_iWidth, m_iHeight);
 
 		// 6. End Frame
 		glfwSwapBuffers(GetGLWindow());
@@ -229,12 +243,30 @@ void CWindowManager::ProcessInput(float deltaTime)
 		}
 	}
 
+	if (inputMgr.IsKeyPressed(GLFW_KEY_Q))
+	{
+		if (m_bIsWireFrame)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			m_bIsWireFrame = false;
+		}
+		else
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			m_bIsWireFrame = true;
+		}
+
+		syslog("Setting WireFrame: {}", m_bIsWireFrame);
+	}
+
 	// Print some Data
 	if (inputMgr.IsKeyPressed(GLFW_KEY_H))
 	{
-		syslog("DeltaTime: %f", timerMgr.GetDeltaTimeF());
-		syslog("ElapsedTime: %f", timerMgr.GetElapsedTimeF());
-		syslog("FPS: %f", timerMgr.GetFPSF());
+		syslog("DeltaTime: {}", timerMgr.GetDeltaTimeF());
+		syslog("ElapsedTime: {}", timerMgr.GetElapsedTimeF());
+		syslog("FPS: {}", timerMgr.GetFPSF());
+
+		PrintGPUMemoryUsage_AMD();
 	}
 
 	// Camera Movement
@@ -259,6 +291,21 @@ void CWindowManager::ProcessInput(float deltaTime)
 	}
 }
 
+void CWindowManager::PrintGPUMemoryUsage_AMD()
+{
+	if (GL_ATI_meminfo)
+	{
+		GLint vbo_free[4] = { 0 };
+		glGetIntegerv(GL_VBO_FREE_MEMORY_ATI, vbo_free);
+
+		printf("--- AMD GPU Memory: Free=%d KB --- \n", vbo_free[0]);
+
+		printf("VBO Free: %d MB\n", vbo_free[0] / 1024);
+		printf("Aux Free: %d MB\n", vbo_free[1] / 1024);
+		printf("VBO Total: %d MB\n", vbo_free[2] / 1024);
+		printf("Aux Total: %d MB\n", vbo_free[3] / 1024);
+	}
+}
 void CWindowManager::RequestShutdown()
 {
 	// 1. Request GLFW to close the window -- 
@@ -340,6 +387,8 @@ void CWindowManager::InitializeSubSystems()
 
 	// 4. Initialize Renderer Manager
 	CRendererManager::Instance().Initialize();
+
+	MapManager.Initialize(m_iWidth, m_iHeight);
 }
 
 void CWindowManager::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height)

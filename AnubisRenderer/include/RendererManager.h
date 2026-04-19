@@ -62,6 +62,8 @@ public:
 	 */
 	void RenderDynamicBatchDebugging(GLenum mode, const SLinesVertex* vertices, GLsizeiptr numVertices, const GLuint* indices, GLsizeiptr numIndices);
 
+	void RenderDynamicBatchTiles(GLenum mode, const SUIVertex* vertices, GLsizeiptr numVertices, const GLuint* indices, GLsizeiptr numIndices);
+
 protected:
 	/**
 	 * @brief Initializes the GPU buffers used for debugging rendering.

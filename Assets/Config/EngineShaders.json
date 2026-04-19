@@ -1,0 +1,24 @@
+{
+    "shaders": [
+        {
+            "fragment_path": "Assets/Shaders/Renderer/basic_renderer.frag",
+            "name": "BasicRenderer",
+            "vertex_path": "Assets/Shaders/Renderer/basic_renderer.vert"
+        },
+        {
+          "fragment_path": "Assets/Shaders/Renderer/debug_renderer.frag",
+          "name": "DebuggingRenderer",
+          "vertex_path": "Assets/Shaders/Renderer/debug_renderer.vert"
+        },
+        {
+          "fragment_path": "Assets/Shaders/Renderer/terrain_renderer.frag",
+          "name": "TerrainRenderer",
+          "vertex_path": "Assets/Shaders/Renderer/terrain_renderer.vert"
+        },
+        {
+          "fragment_path": "Assets/Shaders/UI/userinterface.frag",
+          "name": "UserInterface",
+          "vertex_path": "Assets/Shaders/UI/userinterface.vert"
+        }
+    ]
+}

@@ -253,6 +253,16 @@ GLuint CTexture::GetTextureID() const
 }
 
 /**
+ * @brief Gets the OpenGL texture ID.
+ *
+ * @return The OpenGL texture ID.
+ */
+GLuint& CTexture::GetTextureIDRef()
+{
+	return m_uiTextureID;
+}
+
+/**
  * @brief Gets the width of the texture.
  *
  * @return The width of the texture.

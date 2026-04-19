@@ -27,7 +27,7 @@ void CRendererManager::Initialize()
 	}
 
 	// 2. Initialize Main Buffers
-	Anubis::GL::InitializeBufferGroup<Vertex>(m_MainBufferGroup, m_uiMainVAO);
+	Anubis::GL::InitializeBufferGroup<SUIVertex>(m_MainBufferGroup, m_uiMainVAO);
 
 	// Mark as initialized
 	m_bInitialized = true;
@@ -156,3 +156,39 @@ void CRendererManager::InitializeDebuggingBuffers()
 	Anubis::GL::LinkBuffersToVAO<SLinesVertex>(m_uiDebuggingVAO, m_DebuggingBufferGroup);
 }
 
+/**
+ * @brief Renders a dynamic batch of debug lines or shapes.
+ *
+ * This function uploads the provided vertex and index data to the GPU and issues
+ * a draw call to render the specified geometry using the debug rendering shader.
+ *
+ * @param mode The OpenGL primitive type (e.g., GL_LINES, GL_TRIANGLES).
+ * @param vertices Pointer to the array of SLinesVertex vertices.
+ * @param numVertices Number of vertices in the array.
+ * @param indices Pointer to the array of indices.
+ * @param numIndices Number of indices in the array.
+ */
+void CRendererManager::RenderDynamicBatchTiles(GLenum mode, const SUIVertex* vertices, GLsizeiptr numVertices, const GLuint* indices, GLsizeiptr numIndices)
+{
+	// 1. Quick exit checks
+	if (!m_bInitialized || numVertices == 0 || numIndices == 0)
+	{
+		syserr("RendererManager Cannot Render Tiles Batches!");
+		return;
+	}
+
+	// 2. Memory Management (The "Heavy Lifting")
+	// These helpers handle the Allocation, Reallocation, and VAO Linking internally
+	Anubis::GL::EnsureBufferCapacity<SUIVertex>(m_MainBufferGroup, m_uiDebuggingVAO, numVertices, numIndices);
+	Anubis::GL::UpdateDynamicBufferGroup<SUIVertex>(m_MainBufferGroup, vertices, numVertices, indices, numIndices);
+
+	// 3. Set State
+	auto* pDebuggingManager = CShadersManager::Instance().GetShader("DebuggingRenderer");
+	CStateManager::Instance().BindShader(pDebuggingManager);
+	CStateManager::Instance().BindVertexArray(m_uiDebuggingVAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_MainBufferGroup.uiEBO);
+
+	// 4. Draw
+	// Note: No need to bind EBO here; it was linked during EnsureBufferCapacity/LinkBuffersToVAO
+	glDrawElements(mode, static_cast<GLsizei>(numIndices), GL_UNSIGNED_INT, nullptr);
+}

@@ -46,11 +46,19 @@ include_directories(BEFORE "${CMAKE_SOURCE_DIR}/Extern/include")
 link_directories("${CMAKE_SOURCE_DIR}/Extern/lib")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
+# OpenSSL
+set(OPENSSL_ROOT_DIR       "C:/Program Files/OpenSSL-Win64")
+set(OPENSSL_INCLUDE_DIR    "C:/Program Files/OpenSSL-Win64/include")   # ← add /include
+set(OPENSSL_CRYPTO_LIBRARY "C:/Program Files/OpenSSL-Win64/lib/VC/x64/MD/libcrypto.lib")
+set(OPENSSL_SSL_LIBRARY    "C:/Program Files/OpenSSL-Win64/lib/VC/x64/MD/libssl.lib")
+
+find_package(OpenSSL REQUIRED)
+
 # 1. Add the Libraries first so other things can link to it
 add_subdirectory(AnubisMath)
 add_subdirectory(CoreEngine)
-add_subdirectory(AnubisRenderer)
 add_subdirectory(MapLayer)
+add_subdirectory(AnubisRenderer)
 
 add_executable(MapEngine)
 
@@ -71,6 +79,17 @@ target_include_directories(MapEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(MapEngine PRIVATE "Extern/include")
 
 # target_precompile_headers(MapEngine PRIVATE Stdafx.h)
+
+# Link to your engine target
+target_link_libraries(MapEngine PRIVATE
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
+
+# Enable HTTPS in httplib
+target_compile_definitions(MapEngine PRIVATE
+    CPPHTTPLIB_OPENSSL_SUPPORT
+)
 
 # Tells the compiler to optimize for the current CPU architecture (AVX2/FMA)
 if(NOT MSVC)

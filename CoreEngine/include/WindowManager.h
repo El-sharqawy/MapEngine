@@ -19,6 +19,8 @@
 #include "DebugRenderer.h"
 #include "RendererManager.h"
 
+#include "../../MapLayer/include/MapManager.h"
+
 class CWindowManager: public CSingleton<CWindowManager>
 {
 public:
@@ -39,6 +41,10 @@ public:
 
 	void Update();
 	void ProcessInput(float deltaTime);
+
+	size_t GetCurrentCPUMemoryUsage();
+	void PrintGPUMemoryUsage_AMD();
+
 	void RequestShutdown();
 
 	// User Input
@@ -74,6 +80,8 @@ protected:
 	CDebugRenderer DebugRender;
 	CRendererManager RendererManager;
 
+	CMapManager MapManager;
+
 private:
 	GLFWwindow* m_pGLWindow = nullptr;
 	GLFWmonitor* m_pGLMonitor = nullptr;
@@ -92,4 +100,6 @@ private:
 	EWindowMode m_eWindowMode = EWindowMode::MODE_WINDOWED;
 
 	std::unique_ptr<CCamera> m_pCamera = nullptr;
+
+	bool m_bIsWireFrame = false;
 };

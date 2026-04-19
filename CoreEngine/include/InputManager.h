@@ -72,7 +72,7 @@ public:
 	 *
 	 * @param v2MousePos The new mouse position.
 	 */
-	void OnMouseMove(const Vector2D& v2MousePos);
+	void OnMouseMove(Vector2D v2MousePos);
 
 	/**
 	 * @brief Handles mouse scroll events.
@@ -149,5 +149,6 @@ private:
 	std::array<EKeyState, 3> m_bMouseKeys{}; // 0 -> Left, 1 -> Right, 2 -> Scroll
 
 	Vector2D m_v2MousePos{}; // Current mouse position
+	Vector2D m_v2LastMousePos{};
 	float m_fMouseScrollVal = 0.0f; // Current mouse scroll value
 };

@@ -1,0 +1,20 @@
+{
+    "textures": [
+        {
+            "name": "grass_01",
+            "path": "Assets/Textures/Environment/grass_01.png"
+        },
+        {
+            "name": "btn_small_down",
+            "path": "Assets/UI/Buttons/btn_small_down.png"
+        },
+        {
+            "name": "btn_small_hover",
+            "path": "Assets/UI/Buttons/btn_small_hover.png"
+        },
+        {
+            "name": "btn_small_normal",
+            "path": "Assets/UI/Buttons/btn_small_normal.png"
+        }
+    ]
+}

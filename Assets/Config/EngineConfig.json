@@ -1,0 +1,18 @@
+{
+    "graphics": [
+        {
+            "fov": 45.0,
+            "limit_framerate": false,
+            "target_framerate": 240
+        }
+    ],
+    "window": [
+        {
+            "config_resolution": false,
+            "fullscreen": false,
+            "height": 720,
+            "title": "Anubis-Engine",
+            "width": 1280
+        }
+    ]
+}

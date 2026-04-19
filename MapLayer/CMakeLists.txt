@@ -48,6 +48,7 @@ target_include_directories(MapLayer PRIVATE "Extern/include")
 
 target_link_libraries(MapLayer
     PUBLIC AnubisMath
+    PUBLIC AnubisRenderer
 )
 
 # target_precompile_headers(MapLayer PRIVATE Stdafx.h)

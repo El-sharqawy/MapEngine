@@ -444,6 +444,58 @@ void Anubis::GL::SetupVertexBufferAttributesVertex(GLuint uiVAO)
 }
 
 /**
+ * @brief Sets up the vertex buffer attributes for UI vertices.
+ *
+ * This function configures the vertex attribute pointers for UI vertices
+ * in the specified Vertex Array Object (VAO).
+ *
+ * Uses (DSA) on modern drivers or (Legacy) as a fallback to ensure cross-version compatibility.
+ *
+ * @param uiVAO The Vertex Array Object to set up.
+ */
+void Anubis::GL::SetupVertexBufferAttributesUIVertex(GLuint uiVAO)
+{
+	// Define attribute layout
+	const GLint iPosition = 0;
+	const GLint iTexCoord = 1;
+	const GLint iColor = 2;
+
+	if (IsGLVersionHigher(4, 5))
+	{
+		// Attributes
+		glEnableVertexArrayAttrib(uiVAO, iPosition); // Position
+		glVertexArrayAttribFormat(uiVAO, iPosition, 2, GL_FLOAT, GL_FALSE, offsetof(SUIVertex, m_v2Position));
+		glVertexArrayAttribBinding(uiVAO, iPosition, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iTexCoord); // Tex Coords
+		glVertexArrayAttribFormat(uiVAO, iTexCoord, 2, GL_FLOAT, GL_FALSE, offsetof(SUIVertex, m_v2TexCoords));
+		glVertexArrayAttribBinding(uiVAO, iTexCoord, 0);
+
+		glEnableVertexArrayAttrib(uiVAO, iColor); // Tex Coords
+		glVertexArrayAttribFormat(uiVAO, iColor, 4, GL_FLOAT, GL_FALSE, offsetof(SUIVertex, m_v4Color));
+		glVertexArrayAttribBinding(uiVAO, iColor, 0);
+
+	}
+	else
+	{
+		// --- LEGACY PATH ---
+		glBindVertexArray(uiVAO);
+
+		// Define Attributes (While m_uiMainVBO is bound to GL_ARRAY_BUFFER)
+		glEnableVertexAttribArray(iPosition); // Position
+		glVertexAttribPointer(iPosition, 2, GL_FLOAT, GL_FALSE, sizeof(SUIVertex), (void*)offsetof(SUIVertex, m_v2Position));
+
+		glEnableVertexAttribArray(iTexCoord); // Texture Coords
+		glVertexAttribPointer(iTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(SUIVertex), (void*)offsetof(SUIVertex, m_v2TexCoords));
+
+		glEnableVertexAttribArray(iColor); // Vertex Color
+		glVertexAttribPointer(iColor, 4, GL_FLOAT, GL_FALSE, sizeof(SUIVertex), (void*)offsetof(SUIVertex, m_v4Color));
+
+		glBindVertexArray(0);
+	}
+}
+
+/**
  * @brief Creates a single OpenGL texture and returns its ID.
  *
  * Uses glCreateTextures (DSA) on modern drivers or glGenTextures (Legacy)
@@ -646,8 +698,8 @@ bool Anubis::GL::UploadTextureDataToGPUDSA(GLuint& uiTextureID, const SImageData
 	// Parameters
 	glTextureParameteri(uiTextureID, GL_TEXTURE_MIN_FILTER, iLevels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
 	glTextureParameteri(uiTextureID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTextureParameteri(uiTextureID, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTextureParameteri(uiTextureID, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTextureParameteri(uiTextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTextureParameteri(uiTextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	if (iLevels > 1 && sImageData.pData)
 	{

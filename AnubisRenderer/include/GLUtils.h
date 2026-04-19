@@ -22,6 +22,8 @@ constexpr GLsizeiptr INITIAL_DEBUG_INDEX_CAPACITY = 2048;  // Start with 2k indi
 constexpr GLsizeiptr INITIAL_VERTEX_CAPACITY = 8192; // Start with 8k vertices
 constexpr GLsizeiptr INITIAL_INDEX_CAPACITY = 16384;  // Start with 16k indices
 
+#define ENABLE_DEBUG_LOG
+
 namespace Anubis
 {
 	namespace GL
@@ -90,6 +92,7 @@ namespace Anubis
         void SafeDeleteGPUBufferGroup(SGPUBuffersGroup& bufferGroup);
 		void SetupVertexBufferAttributesLines(GLuint uiVAO);
         void SetupVertexBufferAttributesVertex(GLuint uiVAO);
+		void SetupVertexBufferAttributesUIVertex(GLuint uiVAO);
 
 		/**
 		 * @brief Checks if the current OpenGL version is greater than or equal to the specified version.
@@ -202,6 +205,10 @@ namespace Anubis
             {
                 SetupVertexBufferAttributesVertex(uiVAO);
             }
+			else if constexpr (std::is_same<T, SUIVertex>::value)
+			{
+				SetupVertexBufferAttributesUIVertex(uiVAO);
+			}
         }
 
 		/**

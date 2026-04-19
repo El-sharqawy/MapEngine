@@ -1,5 +1,6 @@
 #include "InputManager.h"
 #include <GLFW/glfw3.h>
+#include "../../MapLayer/include/MapManager.h"
 
 /**
  * @brief Initializes the input manager.
@@ -102,6 +103,7 @@ void CInputManager::OnMouseButton(int32_t button, bool pressed)
 		// Only trigger UI click on the initial press (not while holding)
 		if (button == GLFW_MOUSE_BUTTON_LEFT && m_bMouseKeys[button] == EKeyState::KEY_PRESSED)
 		{
+
 		}
 	}
 	else
@@ -115,9 +117,17 @@ void CInputManager::OnMouseButton(int32_t button, bool pressed)
  *
  * @param v2MousePos The new mouse position.
  */
-void CInputManager::OnMouseMove(const Vector2D& v2MousePos)
+void CInputManager::OnMouseMove(Vector2D v2MousePos)
 {
+	Vector2D v2Delta = v2MousePos - m_v2LastMousePos;
+	m_v2LastMousePos = m_v2MousePos;
 	m_v2MousePos = v2MousePos;
+
+	// Only drag if left mouse is held
+	if (m_bMouseKeys[0] == EKeyState::KEY_DOWN || m_bMouseKeys[0] == EKeyState::KEY_PRESSED)
+	{
+		CMapManager::Instance().OnMouseDrag(v2Delta.x, v2Delta.y);
+	}
 }
 
 /**
@@ -128,6 +138,7 @@ void CInputManager::OnMouseMove(const Vector2D& v2MousePos)
 void CInputManager::OnMouseScroll(float fScrollOffset)
 {
 	m_fMouseScrollVal = fScrollOffset;
+	CMapManager::Instance().OnMouseScroll(m_fMouseScrollVal, m_v2MousePos.x, m_v2MousePos.y);
 }
 
 /**

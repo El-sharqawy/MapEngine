@@ -101,6 +101,8 @@ public:
 	 */
 	GLuint GetTextureID() const;
 
+	GLuint& GetTextureIDRef();
+
 	/**
 	 * @brief Gets the width of the texture.
 	 *

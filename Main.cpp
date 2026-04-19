@@ -1,5 +1,4 @@
 #include "WindowManager.h"
-#include "CoordTransform.h"
 #include <memory>
 
 int main(int argc, char* argv[])
