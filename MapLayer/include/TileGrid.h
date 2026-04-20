@@ -14,6 +14,12 @@ struct STileReadyData
     SImageData  imageData;  // raw pixels, not yet on GPU
 };
 
+struct STileRoadData
+{
+    std::string             sHighwayType;   // "primary", "residential", etc.
+    std::vector<Vector2D>   vLatLngPoints;  // raw lat/lng coords
+};
+
 /**
  * @brief Computes which tiles are visible given a camera view in world-pixel space.
  *

@@ -2,11 +2,8 @@
 #include "GLUtils.h"
 #include <algorithm>
 
-#pragma warning(push)
-#pragma warning(disable: 4090)
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
-#pragma warning(pop)
 
 #include <stb_image/stb_image.h>
 #include <stb_image/stb_image_write.h>

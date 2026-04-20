@@ -179,6 +179,13 @@ public:
         );
     }
 
+    Vector2D LatLngToScreen(double dLat, double dLng, int iScreenW, int iScreenH) const
+    {
+        Vector2D worldPixel = Anubis::LatLngToPixel(dLat, dLng, m_iZoom);
+        Vector2D origin = GetCameraOrigin(iScreenW, iScreenH);
+        return Vector2D(worldPixel.x - origin.x, worldPixel.y - origin.y);
+    }
+
 private:
     double m_dCenterLat;
     double m_dCenterLng;
@@ -207,4 +214,16 @@ private:
         return Vector2D(origin.x + sx, origin.y + sy);
     }
 
+    STileIndex ScreenToTile(float fScreenX, float fScreenY, int iScreenW, int iScreenH) const
+    {
+        Vector2D origin = GetCameraOrigin(iScreenW, iScreenH);
+        float worldX = origin.x + fScreenX;
+        float worldY = origin.y + fScreenY;
+
+        return STileIndex{
+            (int)floorf(worldX / TILE_SIZE_PX),
+            (int)floorf(worldY / TILE_SIZE_PX),
+            m_iZoom
+        };
+    }
 };

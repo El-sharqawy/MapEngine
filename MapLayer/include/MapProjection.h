@@ -125,5 +125,39 @@ namespace Anubis
         return std::fmod(bearing + 360.0, 360.0); // normalize to [0, 360)
     }
 
+    inline std::string BuildRoadsQuery(double minLat, double minLng, double maxLat, double maxLng)
+    {
+        // Fetches all roads in a bounding box
+        //return "[out:json][timeout:25];"
+        //    "way[\"highway\"]"
+        //    "(" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
+        //    + std::to_string(maxLat) + "," + std::to_string(maxLng) + ");"
+        //    "out geom;";
+
+        return "[out:json][timeout:25];"
+            "way[\"highway\"][\"highway\"~\"motorway|trunk|primary|secondary\"]"  // filter
+            "(" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
+            + std::to_string(maxLat) + "," + std::to_string(maxLng) + ");"
+            "out geom;";
+    }
+
+    // Simple URL encoder — replaces special chars for form POST
+    inline static std::string UrlEncode(const std::string& s)
+    {
+        std::string result;
+        result.reserve(s.size() * 3);
+        for (unsigned char c : s)
+        {
+            if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+                result += c;
+            else
+            {
+                char buf[4];
+                snprintf(buf, sizeof(buf), "%%%02X", c);
+                result += buf;
+            }
+        }
+        return result;
+    }
 
 }

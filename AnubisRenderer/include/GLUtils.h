@@ -393,7 +393,7 @@ namespace Anubis
 			group.iEboCapacity = newEboCount;
 
 #if defined(ENABLE_DEBUG_LOG)
-			syslog("Vault Expanded to V:%zu E:%zu", newVboCount, newEboCount);
+			syslog("Vault Expanded to V:{} E: {}", newVboCount, newEboCount);
 #endif
 			return (true);
 		}
