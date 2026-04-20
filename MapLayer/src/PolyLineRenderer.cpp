@@ -1,6 +1,12 @@
 #include "PolyLineRenderer.h"
+#include "PolyLineRenderer.h"
 #include "ShadersManager.h"
 #include "StateManager.h"
+
+#include <algorithm>
+
+#undef min
+#undef max
 
 CPolyLineRenderer::~CPolyLineRenderer()
 {
@@ -21,33 +27,81 @@ void CPolyLineRenderer::UploadRoads(const std::vector<STileRoadData>& roads, con
     m_vLineCounts.clear();
     std::vector<uint32_t> indices;
 
+    // Epsilon in screen pixels — higher = more simplification
+    float fEpsilon = std::max(1.0f, 8.0f - (float)camera.GetZoom() * 0.5f);
+
     for (const STileRoadData& road : roads)
     {
-        // Pick color by road type
         Vector4D color = GetRoadColor(road.sHighwayType);
-        int32_t count = 0;
+        float fWidth = GetRoadWidth(road.sHighwayType, camera.GetZoom());
 
+        // Convert to screen first
+        std::vector<Vector2D> screenPts;
+        screenPts.reserve(road.vLatLngPoints.size());
         for (const Vector2D& pt : road.vLatLngPoints)
         {
-            Vector2D screen = camera.LatLngToScreen(pt.x, pt.y, iScreenW, iScreenH);
-            verts.emplace_back(Vector3D(screen.x, screen.y, 0.0f), color);
-            count++;
+            screenPts.push_back(camera.LatLngToScreen(pt.x, pt.y, iScreenW, iScreenH));
         }
-        m_vLineCounts.push_back(count);
+
+        // Simplify
+        std::vector<Vector2D> simplified;
+        Anubis::DouglasPeucker(screenPts, fEpsilon, simplified);
+
+        if (simplified.size() < 2)
+        {
+            continue;
+        }
+
+        // Build thick quad strip
+        BuildThickLine(simplified, fWidth, color, verts, indices);
     }
 
-    indices.push_back(0);
+    syslog("UploadRoads: {} verts, {} indices", verts.size(), indices.size());
 
     // Upload using your existing buffer helpers
     Anubis::GL::EnsureBufferCapacity<SLinesVertex>(m_bufferGroup, m_uiQuadVAO, verts.size(), indices.size());
     Anubis::GL::UpdateDynamicBufferGroup<SLinesVertex>(m_bufferGroup, verts.data(), verts.size(), indices.data(), indices.size());
 
+    m_iTotalIndices = (int32_t)indices.size();
     m_iTotalRoads = (int32_t)roads.size();
+
+    syslog("UploadRoads: {} roads, {} verts after simplification (epsilon={})", m_iTotalRoads, verts.size(), fEpsilon);
+}
+
+void CPolyLineRenderer::BuildThickLine(const std::vector<Vector2D>& pts, float fWidth, const Vector4D& color, std::vector<SLinesVertex>& verts, std::vector<uint32_t>& indices)
+{
+    float fHalf = fWidth * 0.5f;
+
+    for (size_t i = 0; i + 1 < pts.size(); i++)
+    {
+        Vector2D a = pts[i];
+        Vector2D b = pts[i + 1];
+
+        // Perpendicular normal
+        float dx = b.x - a.x;
+        float dy = b.y - a.y;
+        float len = std::sqrt(dx * dx + dy * dy);
+        if (len < 0.0001f) continue;
+
+        float nx = -dy / len * fHalf;
+        float ny = dx / len * fHalf;
+
+        uint32_t base = (uint32_t)verts.size();
+
+        // 4 corners of the quad
+        verts.emplace_back(Vector3D(a.x + nx, a.y + ny, 0.0f), color);
+        verts.emplace_back(Vector3D(a.x - nx, a.y - ny, 0.0f), color);
+        verts.emplace_back(Vector3D(b.x + nx, b.y + ny, 0.0f), color);
+        verts.emplace_back(Vector3D(b.x - nx, b.y - ny, 0.0f), color);
+
+        // Two triangles
+        indices.insert(indices.end(), { base, base + 1, base + 2,  base + 1, base + 3, base + 2 });
+    }
 }
 
 void CPolyLineRenderer::Render(int32_t iScreenW, int32_t iScreenH)
 {
-    if (!m_bInitialized || m_vLineCounts.empty())
+    if (!m_bInitialized || m_iTotalIndices == 0)
     {
         // syserr("Failed to Render Polylines");
         return;
@@ -77,16 +131,9 @@ void CPolyLineRenderer::Render(int32_t iScreenW, int32_t iScreenH)
     state.SetEngineCapability(GL_CULL_FACE, false);
 
     state.BindVertexArray(m_uiQuadVAO);
-    glLineWidth(2.0f);
 
-    int32_t offset = 0;
-    for (int32_t count : m_vLineCounts)
-    {
-        glDrawArrays(GL_LINE_STRIP, offset, count);
-        offset += count;
-    }
-
-    glLineWidth(1.0f);
+    // Single draw call for all roads
+    glDrawElements(GL_TRIANGLES, m_iTotalIndices, GL_UNSIGNED_INT, 0);
 
     state.BindVertexArray(0);
     state.PopState();
@@ -120,4 +167,21 @@ Vector4D CPolyLineRenderer::GetRoadColor(const std::string& sType)
     if (sType == "residential" || sType == "tertiary")
         return Vector4D(1.0f, 1.0f, 1.0f, 0.8f);   // white
     return Vector4D(0.7f, 0.7f, 0.7f, 0.6f);       // gray fallback
+}
+
+float CPolyLineRenderer::GetRoadWidth(const std::string& sType, int32_t iZoom)
+{
+    float fBase;
+    if (sType == "motorway" || sType == "trunk")
+        fBase = 3.0f;
+    else if (sType == "primary")
+        fBase = 2.0f;
+    else if (sType == "secondary")
+        fBase = 1.5f;
+    else
+        fBase = 1.0f;
+
+    // Scale with zoom — zoom 12 = 1x, zoom 15 = 2x, zoom 10 = 0.5x
+    float fZoomScale = std::powf(2.0f, (iZoom - 12) * 0.5f);
+    return glm::clamp(fBase * fZoomScale, 1.0f, 12.0f);
 }

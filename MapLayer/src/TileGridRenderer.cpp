@@ -5,6 +5,7 @@
 #include "OrthographicProjection.h"
 #include "EngineMathMatrix.h"
 #include "StateManager.h"
+#include "TimerManager.h"
 
 CTileGridRenderer::~CTileGridRenderer()
 {
@@ -83,6 +84,9 @@ void CTileGridRenderer::Render(CTileGrid& grid, const CMapCamera& camera, int iS
     // 2. Bind the shared UI Geometry (The VAO you created in Initialize)
     state.BindVertexArray(m_uiQuadVAO);
 
+    float fNow = CTimerManager::Instance().GetElapsedTimeF();        // seconds since loaded
+
+
     for (const STileIndex& idx : grid.GetVisibleTiles())
     {
         CTexture* pTex = grid.GetTileTexture(idx);
@@ -98,26 +102,15 @@ void CTileGridRenderer::Render(CTileGrid& grid, const CMapCamera& camera, int iS
         Matrix4 model = EngineMath::Translate(Matrix4(1.0f), Vector3D(screenX, screenY, 0.0f));
         model = EngineMath::Scale(model, Vector3D(TILE_SIZE_PX, TILE_SIZE_PX, 1.0f));
 
-        if (pTex)
-        {
-            state.BindTexture(0, GL_TEXTURE_2D, pTex->GetTextureID());
-            // pTex->BindTexture(0);
-            pUIShader->SetInt("u_Texture", 0);
-            pUIShader->SetBool("u_HasTexture", true);
-            pUIShader->SetVec4("u_Color", Vector4D(0.0f)); // white = no tint
-        }
-        else
-        {
-            grid.RequestTile(idx); // keep requesting until loaded
-            pUIShader->SetBool("u_HasTexture", false);
+        float fAge = fNow - grid.GetTileLoadTime(idx);
+        float fAlpha = glm::clamp(fAge / 0.3f, 0.0f, 1.0f);  // 300ms fade
 
-            // Checkerboard fallback while loading
-            float r = (float)((idx.iTileX * 73856093) & 0xFF) / 255.0f;
-            float g = (float)((idx.iTileY * 19349663) & 0xFF) / 255.0f;
-            float b = (float)(((idx.iTileX ^ idx.iTileY) * 83492791) & 0xFF) / 255.0f;
-
-            pUIShader->SetVec4("u_Color", Vector4D(r, g, b, 0.9f));
-        }
+        state.BindTexture(0, GL_TEXTURE_2D, pTex->GetTextureID());
+        // pTex->BindTexture(0);
+        pUIShader->SetInt("u_Texture", 0);
+        pUIShader->SetBool("u_HasTexture", true);
+        pUIShader->SetVec4("u_Color", Vector4D(0.0f)); // white = no tint
+        pUIShader->SetFloat("u_Alpha", fAlpha);
 
         // Use the pre-calculated bounds to create a simple translation/scale
         // No need for parentTransform!

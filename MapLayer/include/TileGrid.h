@@ -10,8 +10,15 @@
 
 struct STileReadyData
 {
-    STileIndex  index;
-    SImageData  imageData;  // raw pixels, not yet on GPU
+    STileIndex index;
+    SImageData imageData;  // raw pixels, not yet on GPU
+    float fLoadTime = 0.0f;  // time when this tile became ready
+};
+
+struct STileCacheEntry
+{
+    CTexture Texture;
+    float fLoadTime = 0.0f;
 };
 
 struct STileRoadData
@@ -68,13 +75,14 @@ public:
 
     void RequestTile(const STileIndex& idx);   // trigger async fetch
     CTexture* GetTileTexture(const STileIndex& idx); // null if not loaded yet
+    float GetTileLoadTime(const STileIndex& idx) const; // 0.0f if not loaded yet
     bool IsTileLoaded(const STileIndex& idx) const;
 
     void UploadPendingTiles();
 
 private:
     std::vector<STileIndex> m_vVisibleTiles;
-    std::map<STileIndex, CTexture> m_loadedTiles;
+    std::map<STileIndex, STileCacheEntry> m_loadedTiles;
     std::set<STileIndex> m_pendingTiles;  // fetches in-flight
 
     std::mutex m_tilesMutex; // Mutlithread

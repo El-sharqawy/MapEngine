@@ -73,7 +73,11 @@ void CTimerManager::Update()
 		m_dFpsTimeAccum = 0.0;
 		m_bFpsUpdatedThisFrame = true;
 	}
+
+	// Keep atomic in sync — worker threads can read this safely
+	m_fElapsedTimeAtomic.store((float)m_dElapsedTime, std::memory_order_relaxed);
 }
+
 
 void CTimerManager::LimitFrameRate(int32_t iTargetFPS)
 {
@@ -167,7 +171,8 @@ float CTimerManager::GetDeltaTimeF() const
  */
 float CTimerManager::GetElapsedTimeF() const
 {
-	return static_cast<float>(m_dElapsedTime);
+	// return static_cast<float>(m_dElapsedTime);
+	return m_fElapsedTimeAtomic.load(std::memory_order_relaxed);
 }
 
 /**

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 #undef min
 #undef max
@@ -158,6 +159,58 @@ namespace Anubis
             }
         }
         return result;
+    }
+
+    inline static float PerpendicularDistance(const Vector2D& pt, const Vector2D& lineStart, const Vector2D& lineEnd)
+    {
+        float dx = lineEnd.x - lineStart.x;
+        float dy = lineEnd.y - lineStart.y;
+
+        float mag = std::sqrt(dx * dx + dy * dy);
+        if (mag < 0.0001f) return std::sqrt((pt.x - lineStart.x) * (pt.x - lineStart.x) +
+            (pt.y - lineStart.y) * (pt.y - lineStart.y));
+
+        return std::abs(dy * pt.x - dx * pt.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x) / mag;
+    }
+
+    inline static void DouglasPeucker(const std::vector<Vector2D>& points, float fEpsilon, std::vector<Vector2D>& out)
+    {
+        if (points.size() < 2) return;
+
+        // Find the point with max distance from the line start→end
+        float fMaxDist = 0.0f;
+        size_t uiMaxIdx = 0;
+
+        for (size_t i = 1; i < points.size() - 1; i++)
+        {
+            float d = PerpendicularDistance(points[i], points.front(), points.back());
+            if (d > fMaxDist)
+            {
+                fMaxDist = d;
+                uiMaxIdx = i;
+            }
+        }
+
+        if (fMaxDist > fEpsilon)
+        {
+            // Recurse on both halves
+            std::vector<Vector2D> left(points.begin(), points.begin() + uiMaxIdx + 1);
+            std::vector<Vector2D> right(points.begin() + uiMaxIdx, points.end());
+
+            std::vector<Vector2D> leftResult, rightResult;
+            DouglasPeucker(left, fEpsilon, leftResult);
+            DouglasPeucker(right, fEpsilon, rightResult);
+
+            // Merge (remove duplicate junction point)
+            out = leftResult;
+            out.insert(out.end(), rightResult.begin() + 1, rightResult.end());
+        }
+        else
+        {
+            // All points between are close enough — keep only endpoints
+            out.push_back(points.front());
+            out.push_back(points.back());
+        }
     }
 
 }

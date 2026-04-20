@@ -1,5 +1,7 @@
 #include "TileGrid.h"
 #include "GLUtils.h"
+#include "TimerManager.h"
+
 #include <algorithm>
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
@@ -143,6 +145,7 @@ void CTileGrid::RequestTile(const STileIndex& idx)
             ready.imageData.iWidth = w;
             ready.imageData.iHeight = h;
             ready.imageData.iChannels = channels;
+            ready.fLoadTime = CTimerManager::Instance().GetElapsedTimeF();
 
             std::lock_guard<std::mutex> lock(m_readyMutex);
             m_readyQueue.push(std::move(ready));
@@ -156,12 +159,13 @@ CTexture* CTileGrid::GetTileTexture(const STileIndex& idx)
     UploadPendingTiles();
 
     auto it = m_loadedTiles.find(idx);
-    if (it != m_loadedTiles.end())
-    {
-        return &it->second;
-    }
+    return it != m_loadedTiles.end() ? &it->second.Texture : nullptr;
+}
 
-    return (nullptr);
+float CTileGrid::GetTileLoadTime(const STileIndex& idx) const
+{
+    auto it = m_loadedTiles.find(idx);
+    return it != m_loadedTiles.end() ? it->second.fLoadTime : 0.0f;
 }
 
 bool CTileGrid::IsTileLoaded(const STileIndex& idx) const
@@ -194,7 +198,6 @@ void CTileGrid::UploadPendingTiles()
         }
 
         // Upload to GPU on main thread
-        CTexture tex;
         // Anubis::GL::UploadTextureDataToGPU(tex.GetTextureIDRef(), ready.imageData, GL_TEXTURE_2D, false, GL_UNSIGNED_BYTE);
         GLuint texID = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &texID);
@@ -215,15 +218,19 @@ void CTileGrid::UploadPendingTiles()
         glTextureParameteri(texID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(texID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-        tex.GetTextureIDRef() = texID;
+        // tex.GetTextureIDRef() = texID;
 
         // Free CPU pixels
         stbi_image_free(ready.imageData.pData);
 
         // Store in cache
         {
+            STileCacheEntry entry;
+            entry.Texture.GetTextureIDRef() = texID;
+            entry.fLoadTime = ready.fLoadTime;  // carry from ready data
+
             std::lock_guard<std::mutex> tileLock(m_tilesMutex);
-            m_loadedTiles[ready.index] = std::move(tex);
+            m_loadedTiles[ready.index] = std::move(entry);
             m_pendingTiles.erase(ready.index);
         }
     }

@@ -2,6 +2,7 @@
 
 #include "AnubisPlatform.h"
 #include <chrono>
+#include <atomic>
 
 /**
  * @brief CTimerManager: A service locator class for managing time in the engine.
@@ -114,6 +115,8 @@ private:
 	double m_dElapsedTime;		// Elapsed time in seconds
 	double m_dDeltaTimeMilli;		// Delta time in milliseconds
 	double m_dElapsedTimeMilli;	// Elapsed time in milliseconds
+
+	std::atomic<float> m_fElapsedTimeAtomic{ 0.0f };
 
 	// FPS calculation
 	int32_t m_iFrameCount;			// Frame count within the current second
