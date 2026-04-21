@@ -42,7 +42,6 @@ public:
 	void Update();
 	void ProcessInput(float deltaTime);
 
-	size_t GetCurrentCPUMemoryUsage();
 	void PrintGPUMemoryUsage_AMD();
 
 	void RequestShutdown();
@@ -75,10 +74,7 @@ protected:
 	CStateManager StateManager;
 
 	// Renderer
-	CCameraManager CameraManager;
 	CShadersManager ShadersManager;
-	CDebugRenderer DebugRender;
-	CRendererManager RendererManager;
 
 	CMapManager MapManager;
 
@@ -98,8 +94,6 @@ private:
 	int32_t m_iWindowedHeight = 0;
 
 	EWindowMode m_eWindowMode = EWindowMode::MODE_WINDOWED;
-
-	std::unique_ptr<CCamera> m_pCamera = nullptr;
 
 	bool m_bIsWireFrame = false;
 };

@@ -7,22 +7,13 @@ CWindowManager::~CWindowManager()
 
 void CWindowManager::Destroy()
 {
-	// 1. Shutdown Renderer Manager
-	CRendererManager::Instance().Destroy();
-
-	// 2. Shutdown Debug Manager
-	CDebugRenderer::Instance().Destroy();
-
-	// 4. Shutdown Shaders Manager
+	// 1. Shutdown Shaders Manager
 	CShadersManager::Instance().Destroy();
 
-	// 5. Shutdown State Manager
+	// 2. Shutdown State Manager
 	CStateManager::Instance().Destroy();
 
-	// 3. Shutdown Camera Manager
-	CCameraManager::Instance().Destroy();
-
-	// 6. Shutdown Log Manager
+	// 3. Shutdown Log Manager
 	CLogManager::Instance().Destroy();
 
 	if (m_pGLWindow != nullptr)
@@ -195,20 +186,13 @@ void CWindowManager::Update()
 		// 2. Input state
 		CInputManager::Instance().Update(dt);		// finalize per-frame key/mouse state
 
-		// 3. Update Camera
-		// CCameraManager::Instance().UpdateCameras();
-
-		// 4. Clear Buffers
+		// 3. Clear Buffers
 		SVector4Df fogColor = { 0.3f, 0.3f, 0.3f, 1.0f };
 		glClearColor(fogColor.x, fogColor.y, fogColor.z, fogColor.w);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// 5. Renderer Manager (Draw all 3D objects)
-		CRendererManager::Instance().Update(); // Draw Terrain, Meshes, etc.
-		CDebugRenderer::Instance().RenderAll(); // Draw Lines on top of 3D
-
+		// 4. Renderer Manager (Draw all 2D objects)
 		MapManager.Update(dt, m_iWidth, m_iHeight);
-
 		MapManager.Render(m_iWidth, m_iHeight);
 
 		// 6. End Frame
@@ -222,7 +206,6 @@ void CWindowManager::ProcessInput(float deltaTime)
 {
 	auto& inputMgr = CInputManager::Instance();
 	auto& timerMgr = CTimerManager::Instance();
-	auto& cameraMgr = CCameraManager::Instance();
 
 	// Close The App
 	if (inputMgr.IsKeyPressed(GLFW_KEY_ESCAPE))
@@ -267,27 +250,6 @@ void CWindowManager::ProcessInput(float deltaTime)
 		syslog("FPS: {}", timerMgr.GetFPSF());
 
 		PrintGPUMemoryUsage_AMD();
-	}
-
-	// Camera Movement
-	float DeltaTime = timerMgr.GetDeltaTimeF();
-	CCamera* pCamera = cameraMgr.GetCurrentCamera();
-
-	if (inputMgr.IsKeyDown(GLFW_KEY_W))
-	{
-		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_FORWARD, DeltaTime);
-	}
-	if (inputMgr.IsKeyDown(GLFW_KEY_S))
-	{
-		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_BACKWARD, DeltaTime);
-	}
-	if (inputMgr.IsKeyDown(GLFW_KEY_A))
-	{
-		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_LEFT, DeltaTime);
-	}
-	if (inputMgr.IsKeyDown(GLFW_KEY_D))
-	{
-		pCamera->ProcessKeyboard(ECameraDirections::DIRECTION_RIGHT, DeltaTime);
 	}
 }
 
@@ -379,15 +341,7 @@ void CWindowManager::InitializeSubSystems()
 	// 1. Initialize Shaders Manager
 	CShadersManager::Instance().Initialize();
 
-	// 2. Initialize Camera Manager
-	CCameraManager::Instance().Initialize();
-
-	// 3. Initialize Debug Renderer
-	CDebugRenderer::Instance().Initialize();
-
-	// 4. Initialize Renderer Manager
-	CRendererManager::Instance().Initialize();
-
+	// Initialize Map Manager
 	MapManager.Initialize(m_iWidth, m_iHeight);
 }
 
