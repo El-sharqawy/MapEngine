@@ -101,6 +101,8 @@ void CUserInterface::Render()
 	RenderMainMenuBar();
 	RenderEngineMainUI();
 
+	CMapManager::Instance().RenderCompass();
+
 	// Rendering
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

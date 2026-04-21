@@ -14,14 +14,14 @@
 
 namespace Anubis
 {
-    inline int32_t TileCount(int32_t zoom)
+    inline static int32_t TileCount(int32_t zoom)
     {
         return (1 << zoom); // 2^zoom
     }
 
     // Tile index from lat/lng at zoom level
     // Lat/Lng (degrees) -> tile XY index at a given zoom level
-    inline Vector2D LatLngToTileXY(double lat, double lng, int32_t zoom)
+    inline static Vector2D LatLngToTileXY(double lat, double lng, int32_t zoom)
     {
         const double n = static_cast<double>(TileCount(zoom));
 
@@ -38,7 +38,7 @@ namespace Anubis
 
     // Pixel offset within a tile (0.0 - 1.0 UV)
     // Useful for pinpointing exact pixel within a tile
-    inline Vector2D LatLngToTileUV(double lat, double lng, int32_t zoom)
+    inline static Vector2D LatLngToTileUV(double lat, double lng, int32_t zoom)
     {
         const double n = static_cast<double>(TileCount(zoom));
 
@@ -54,7 +54,7 @@ namespace Anubis
     }
 
     // World-space pixel position (for camera/pan math)
-    inline Vector2D LatLngToPixel(double lat, double lng, int32_t zoom)
+    inline static Vector2D LatLngToPixel(double lat, double lng, int32_t zoom)
     {
         const double n = static_cast<double>(TileCount(zoom));
         const double size = n * static_cast<double>(TILE_SIZE_PX);
@@ -68,7 +68,7 @@ namespace Anubis
 
     // World pixel position → Lat/Lng (inverse of LatLngToPixel)
     // Used by CMapCamera::Pan() to convert pixel movement back to lat/lng delta
-    inline Vector2D PixelToLatLng(double px, double py, int32_t zoom)
+    inline static Vector2D PixelToLatLng(double px, double py, int32_t zoom)
     {
         const double n = static_cast<double>(TileCount(zoom));
         const double size = n * static_cast<double>(TILE_SIZE_PX);
@@ -88,7 +88,7 @@ namespace Anubis
     }
     // Haversine distance between two points (display on screen)
     // Haversine formula — great-circle distance in meters
-    inline double DistanceMeters(double lat1, double lng1, double lat2, double lng2)
+    inline static double DistanceMeters(double lat1, double lng1, double lat2, double lng2)
     {
         double dLat = (lat2 - lat1) * M_PI / 180.0;
         double dLng = (lng2 - lng1) * M_PI / 180.0;
@@ -102,7 +102,7 @@ namespace Anubis
     }
 
     // Human-readable distance string (auto-selects m vs km)
-    inline std::string FormatDistance(double meters)
+    inline static std::string FormatDistance(double meters)
     {
         if (meters < 1000.0)
             return std::to_string(static_cast<int>(std::round(meters))) + " m";
@@ -113,7 +113,7 @@ namespace Anubis
     }
 
     // Returns bearing in degrees (0 = North, 90 = East, clockwise)
-    inline double BearingDegrees(double lat1, double lng1, double lat2, double lng2)
+    inline static double BearingDegrees(double lat1, double lng1, double lat2, double lng2)
     {
         double dLng = (lng2 - lng1) * M_PI / 180.0;
         double lat1R = lat1 * M_PI / 180.0;
@@ -127,19 +127,34 @@ namespace Anubis
         return std::fmod(bearing + 360.0, 360.0); // normalize to [0, 360)
     }
 
-    inline std::string BuildRoadsQuery(double minLat, double minLng, double maxLat, double maxLng)
+    inline static std::string BuildRoadsQuery(double minLat, double minLng,
+        double maxLat, double maxLng,
+        int iZoom)
     {
-        // Fetches all roads in a bounding box
-        //return "[out:json][timeout:25];"
-        //    "way[\"highway\"]"
-        //    "(" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
-        //    + std::to_string(maxLat) + "," + std::to_string(maxLng) + ");"
-        //    "out geom;";
+        std::string sFilter = (iZoom <= 13)
+            ? "motorway|trunk|primary|secondary"
+            : (iZoom <= 15)
+            ? "motorway|trunk|primary|secondary|tertiary|residential"
+            : "motorway|trunk|primary|secondary|tertiary|residential|unclassified|service|living_street";
 
-        return "[out:json][timeout:25];"
-            "way[\"highway\"][\"highway\"~\"motorway|trunk|primary|secondary\"]"  // filter
-            "(" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
+        return "[out:json][timeout:30][maxsize:268435456];"
+            "("
+            "  way[\"highway\"~\"" + sFilter + "\"]"
+            "  (" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
             + std::to_string(maxLat) + "," + std::to_string(maxLng) + ");"
+            ");"
+            "out geom;";
+    }
+
+    inline static std::string BuildBuildingsQuery(double minLat, double minLng, double maxLat, double maxLng)
+    {
+        return "[out:json][timeout:25];"
+            "("
+            "  way[\"building\"](" +
+            std::to_string(minLat) + "," + std::to_string(minLng) + "," +
+            std::to_string(maxLat) + "," + std::to_string(maxLng) +
+            ");"
+            ");"
             "out geom;";
     }
 
@@ -225,6 +240,42 @@ namespace Anubis
             std::sin(dLng / 2) * std::sin(dLng / 2);
 
         return (float)(2.0 * R * std::asin(std::sqrt(a)));
+    }
+
+    inline std::vector<Vector2D> CatmullRomSpline(
+        const std::vector<Vector2D>& pts, int iSegments = 8)
+    {
+        std::vector<Vector2D> result;
+        if (pts.size() < 2) return pts;
+
+        for (size_t i = 0; i < pts.size() - 1; ++i)
+        {
+            // Control points — clamp at endpoints
+            Vector2D p0 = pts[i > 0 ? i - 1 : i];
+            Vector2D p1 = pts[i];
+            Vector2D p2 = pts[i + 1];
+            Vector2D p3 = pts[i + 2 < pts.size() ? i + 2 : i + 1];
+
+            for (int j = 0; j < iSegments; ++j)
+            {
+                float t = (float)j / (float)iSegments;
+                float t2 = t * t;
+                float t3 = t2 * t;
+
+                // Catmull-Rom basis
+                float b0 = -0.5f * t3 + 1.0f * t2 - 0.5f * t;
+                float b1 = 1.5f * t3 - 2.5f * t2 + 1.0f;
+                float b2 = -1.5f * t3 + 2.0f * t2 + 0.5f * t;
+                float b3 = 0.5f * t3 - 0.5f * t2;
+
+                result.emplace_back(
+                    b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x,
+                    b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y
+                );
+            }
+        }
+        result.push_back(pts.back()); // add final point
+        return result;
     }
 
 }

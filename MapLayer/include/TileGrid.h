@@ -27,6 +27,17 @@ struct STileRoadData
     std::vector<Vector2D>   vLatLngPoints;  // raw lat/lng coords
 };
 
+struct SLatLng
+{
+    double lat, lng;
+};
+
+struct STileBuildingData
+{
+    std::vector<SLatLng> vLatLngPoints;  // polygon ring (last == first)
+    std::string sBuildingType;            // "yes", "residential", "commercial", etc.
+};
+
 /**
  * @brief Computes which tiles are visible given a camera view in world-pixel space.
  *

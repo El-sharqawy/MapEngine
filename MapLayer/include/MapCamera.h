@@ -186,6 +186,16 @@ public:
         return Vector2D(worldPixel.x - origin.x, worldPixel.y - origin.y);
     }
 
+    Vector2D GetCenterLatLng(int iScreenW, int iScreenH) const
+    {
+        Vector2D origin = GetOriginWorldPixel(iScreenW, iScreenH);
+
+        float fCenterX = origin.x + iScreenW * 0.5f;
+        float fCenterY = origin.y + iScreenH * 0.5f;
+
+        return Anubis::PixelToLatLng(fCenterX, fCenterY, m_iZoom);
+    }
+
 private:
     double m_dCenterLat;
     double m_dCenterLng;

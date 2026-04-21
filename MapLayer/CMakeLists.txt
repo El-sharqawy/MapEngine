@@ -47,6 +47,7 @@ target_include_directories(MapLayer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}) # expos
 target_include_directories(MapLayer PRIVATE "Extern/include")
 
 target_link_libraries(MapLayer
+    PUBLIC LibImageUI
     PUBLIC AnubisMath
     PUBLIC AnubisRenderer
 )

@@ -3,6 +3,7 @@
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
+#include "../../LibImageUI/Stdafx.h"
 
 bool CMapManager::Initialize(int iScreenW, int iScreenH)
 {
@@ -15,12 +16,16 @@ bool CMapManager::Initialize(int iScreenW, int iScreenH)
     if (!m_polyLineRenderer.Initialize())
         return false;
 
+    if (!m_polyRenderer.Initialize())
+        return false;
+
     // Default center: Cairo
     m_mapCamera.SetCenter(30.0444, 31.2357);
     m_mapCamera.SetZoom(12);
 
     // Fetch roads for initial view
     FetchVisibleRoads();
+    FetchVisibleBuildings();
 
     m_bInitialized = true;
 
@@ -56,6 +61,27 @@ void CMapManager::Update(float fDeltaTime, int iScreenW, int iScreenH)
         m_bRoadsDirty = true;
         syslog("Roads handed to main thread: {} roads", m_roads.size());
     }
+
+    // Fetch Buildings
+    if (m_bNeedsBuildingsFetch)
+    {
+        m_fBulidingsFetchCooldown -= fDeltaTime;
+        if (m_fBulidingsFetchCooldown <= 0.0f)
+        {
+            m_bNeedsBuildingsFetch = false;
+            FetchVisibleBuildings();
+        }
+    }
+
+    if (m_bBuildingReady)
+    {
+        std::lock_guard<std::mutex> lock(m_buildingsMutex);
+        m_vBuildings = std::move(m_vPendingBuildings);
+        m_bBuildingReady = false;
+        m_bBuildingsDirty = true;
+        syslog("Buildings handed to main thread: {} buildings", m_vBuildings.size());
+    }
+
 }
 
 void CMapManager::Render(int iScreenW, int iScreenH)
@@ -67,17 +93,27 @@ void CMapManager::Render(int iScreenW, int iScreenH)
 
     if (m_bRoadsDirty && !m_roads.empty())
     {
-        m_polyLineRenderer.UploadRoads(m_roads, m_mapCamera, m_iScreenW, m_iScreenH);
         m_bRoadsDirty = false;
+        m_polyLineRenderer.UploadRoads(m_roads, m_mapCamera);
+    }
+
+    if (m_bBuildingsDirty && !m_vBuildings.empty())
+    {
+        m_bBuildingsDirty = false;
+        m_polyRenderer.UploadBuildings(m_vBuildings, m_iScreenW, m_iScreenH, m_mapCamera);
     }
 
     m_tileGridRenderer.Render(m_tileGrid, m_mapCamera, iScreenW, iScreenH);
-    m_polyLineRenderer.Render(m_iScreenW, m_iScreenH); // roads on top of the tiles
+    m_polyRenderer.Render(m_iScreenW, m_iScreenH, m_mapCamera);
+    m_polyLineRenderer.Render(m_iScreenW, m_iScreenH, m_mapCamera); // roads on top of the tiles
 }
 
 void CMapManager::Destroy()
 {
-    // do nothing?
+    // Clear GPU Resources
+    m_tileGridRenderer.Destroy();
+    m_polyRenderer.Destroy();
+    m_polyLineRenderer.Destroy();
 }
 
 // Input
@@ -109,57 +145,95 @@ void CMapManager::OnMouseClick(float fMouseX, float fMouseY)
 void CMapManager::OnMouseDrag(float fDx, float fDy)
 {
     m_mapCamera.Pan(fDx, fDy, m_iScreenW, m_iScreenH);
-    m_bRoadsDirty = true;
     m_bNeedsRoadFetch = true;
     m_fRoadFetchCooldown = 2.0f; // wait 1 second after last interaction
+
+    // Buildings
+    m_bNeedsBuildingsFetch = true;
+    m_fBulidingsFetchCooldown = 2.0f;
 }
 
 void CMapManager::OnMouseScroll(float fDelta, float fMouseX, float fMouseY)
 {
+    int32_t iOldZoom = m_mapCamera.GetZoom();
     m_mapCamera.Zoom(fDelta, fMouseX, fMouseY, m_iScreenW, m_iScreenH);
-    m_bRoadsDirty = true;
+    int32_t iNewZoom = m_mapCamera.GetZoom();
+
+    if (iNewZoom != iOldZoom)
+    {
+        // Zoom changed — existing world pixels are wrong, must re-upload
+        if (!m_roads.empty())
+            m_bRoadsDirty = true;
+        if (!m_vBuildings.empty())
+            m_bBuildingsDirty = true;
+    }
+
     m_bNeedsRoadFetch = true;
     m_fRoadFetchCooldown = 2.0f; // wait 1 second after last interaction
+
+    // Buildings
+    m_bNeedsBuildingsFetch = true;
+    m_fBulidingsFetchCooldown = 2.0f;
+}
+
+bool CMapManager::PostOverpassQuery(const std::string& query, std::string& outBody, const std::string& queryType)
+{
+    // Global rate limit across all request types
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastOverpassRequest).count();
+
+    if (elapsed < 1500)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500 - elapsed));
+
+    m_lastOverpassRequest = std::chrono::steady_clock::now();
+
+    httplib::Client cli("http://overpass-api.de");
+    cli.set_connection_timeout(5);
+    cli.set_read_timeout(60);   // was 25, increase to 60
+    cli.set_write_timeout(10);  // add write timeout for large POST body
+    cli.set_default_headers({ {"User-Agent", "AnubisMapEngine/1.0"} });
+
+    std::string body = "data=" + Anubis::UrlEncode(query);
+    auto res = cli.Post("/api/interpreter", body, "application/x-www-form-urlencoded");
+
+    if (!res)
+    {
+        // Log the actual error reason
+        syserr("Overpass connection error: {} - type: {}", httplib::to_string(res.error()), queryType.c_str());
+        return false;
+    }
+    if (res->status != 200)
+    {
+        syserr("Overpass failed: HTTP {} - type: {}", res->status, queryType.c_str());
+        return false;
+    }
+    outBody = res->body;
+    return true;
 }
 
 void CMapManager::FetchRoads(double minLat, double minLng, double maxLat, double maxLng)
 {
+    std::string query = Anubis::BuildRoadsQuery(minLat, minLng, maxLat, maxLng, m_mapCamera.GetZoom());
+
     std::thread([=]()
         {
-            if (m_bFetchInProgress)
+            if (m_bFetchRoadsInProgress)
             {
                 syslog("Fetch already in progress, skipping");
                 return;
             }
 
-            m_bFetchInProgress = true;
+            m_bFetchRoadsInProgress = true;
 
-            // ← Use plain HTTP to isolate SSL issues
-            httplib::Client cli("http://overpass-api.de");
-            cli.set_connection_timeout(5);
-            cli.set_read_timeout(15);
-            cli.set_write_timeout(5);
-            cli.set_default_headers({ {"User-Agent", "AnubisMapEngine/1.0"} });
-
-            std::string query = Anubis::BuildRoadsQuery(minLat, minLng, maxLat, maxLng);
-            std::string body = "data=" + Anubis::UrlEncode(query);
-            auto res = cli.Post("/api/interpreter", body, "application/x-www-form-urlencoded");
-
-            if (!res)
+            std::string body;
+            if (!PostOverpassQuery(query, body, "roads"))
             {
-                syserr("Overpass fetch failed — network error: {}", (int)res.error());
-                m_bFetchInProgress = false;
-                return;
-            }
-            if (res->status != 200)
-            {
-                syserr("Overpass HTTP {} — body: {}", res->status, res->body.substr(0, 200));
-                m_bFetchInProgress = false;
+                m_bFetchRoadsInProgress = false;
                 return;
             }
 
-            ParseAndStoreRoads(res->body);
-            m_bFetchInProgress = false;
+            ParseAndStoreRoads(body);
+            m_bFetchRoadsInProgress = false;
         }).detach();
 }
 
@@ -201,9 +275,10 @@ void CMapManager::ParseAndStoreRoads(const std::string& sJson)
 
 void CMapManager::FetchVisibleRoads()
 {
-    if (m_mapCamera.GetZoom() < 10)
+    int iZoom = m_mapCamera.GetZoom();
+    if (iZoom < 12)
     {
-        syslog("Zoom too low for road fetch, skipping");
+        syslog("Zoom too low for road fetch {}, skipping", iZoom);
         return;
     }
 
@@ -219,5 +294,140 @@ void CMapManager::FetchVisibleRoads()
         bottomRight.x, topLeft.y, topLeft.x, bottomRight.y);
 
     // topLeft.x = maxLat, bottomRight.x = minLat (Y flips in Mercator)
-    FetchRoads(bottomRight.x, topLeft.y, topLeft.x, bottomRight.y);
+    float pad = (iZoom >= 15) ? 0.015f : 0.008f;  // was 0.008/0.003
+    FetchRoads(bottomRight.x - pad, topLeft.y - pad, topLeft.x + pad, bottomRight.y + pad);
+}
+
+void CMapManager::FetchVisibleBuildings()
+{
+    int iZoom = m_mapCamera.GetZoom();
+    if (iZoom < 15)
+    {
+        syslog("Zoom too low for building fetch {}, skipping", iZoom);
+        return;
+    }
+
+    double dDelta = 0.015;
+    Vector2D center = m_mapCamera.GetCenterLatLng(m_iScreenW, m_iScreenH);
+
+    double minLat = center.x - dDelta, maxLat = center.x + dDelta;
+    double minLng = center.y - dDelta, maxLng = center.y + dDelta;
+
+    std::string query = Anubis::BuildBuildingsQuery(minLat, minLng, maxLat, maxLng);
+
+    syslog("Fetching Buildings bbox: minLat={} minLng={} maxLat={} maxLng={}",
+        minLat, minLng, maxLat, maxLng);
+
+    std::thread([this, query]()
+        {
+            if (m_bFetchBuildingsInProgress)
+            {
+                syslog("Fetching buildings already in progress, skipping");
+                return;
+            }
+
+            m_bFetchBuildingsInProgress = true;
+
+            std::string body;
+            if (!PostOverpassQuery(query, body, "buildings"))
+            {
+                m_bFetchBuildingsInProgress = false;
+                return;
+            }
+
+            auto parsed = ParseBuildingsResponse(body);
+
+            std::lock_guard<std::mutex> lock(m_buildingsMutex);
+            m_vPendingBuildings = std::move(parsed);
+            m_bBuildingReady = true;          // correct flag
+            m_bFetchBuildingsInProgress = false;
+        }).detach();
+}
+
+std::vector<STileBuildingData> CMapManager::ParseBuildingsResponse(const std::string& json)
+{
+    std::vector<STileBuildingData> result;
+    nlohmann::json doc = nlohmann::json::parse(json, nullptr, false);
+    if (doc.is_discarded())
+    {
+        return result;
+    }
+
+    for (auto& el : doc["elements"])
+    {
+        if (el["type"] != "way")
+            continue;
+        if (!el.contains("geometry"))
+            continue;
+
+        STileBuildingData building;
+        building.sBuildingType = el.value("tags", nlohmann::json{}).value("building", "yes");
+
+        for (auto& pt : el["geometry"])
+        {
+            double lat = pt["lat"];
+            double lng = pt["lon"];
+            building.vLatLngPoints.push_back({ lat, lng });  // pure double, no cast
+        }
+
+        if (building.vLatLngPoints.size() >= 3)
+        {
+            result.push_back(std::move(building));
+        }
+    }
+
+    syslog("ParseBuildingsResponse: result: {} buildlings", result.size());
+    return result;
+}
+
+void CMapManager::RenderCompass()
+{
+    // Position: bottom-right corner
+    float cx = (float)m_iScreenW - 60.0f;
+    float cy = (float)m_iScreenH - 60.0f;
+    float r = 40.0f;
+
+    float fBearing = 0.0f; // camera.GetBearing(); // 0 = north up, rotate with camera
+
+    ImDrawList* draw = ImGui::GetBackgroundDrawList();
+
+    // Outer circle
+    draw->AddCircle({ cx, cy }, r, IM_COL32(255, 255, 255, 180), 64, 2.0f);
+
+    // Inner fill
+    draw->AddCircleFilled({ cx, cy }, r - 2.0f, IM_COL32(20, 20, 20, 160), 64);
+
+    // North needle (red)
+    float northAngle = fBearing * (M_PI / 180.0f); // bearing in radians
+    ImVec2 northTip = {
+        cx + std::sin(northAngle) * (r - 6.0f),
+        cy - std::cos(northAngle) * (r - 6.0f)
+    };
+    ImVec2 southTip = {
+        cx - std::sin(northAngle) * (r - 6.0f),
+        cy + std::cos(northAngle) * (r - 6.0f)
+    };
+    ImVec2 center = { cx, cy };
+
+    // Red = north half
+    draw->AddTriangleFilled(northTip,
+        { cx + std::cos(northAngle) * 6.0f, cy + std::sin(northAngle) * 6.0f },
+        { cx - std::cos(northAngle) * 6.0f, cy - std::sin(northAngle) * 6.0f },
+        IM_COL32(220, 50, 50, 255));
+
+    // White = south half
+    draw->AddTriangleFilled(southTip,
+        { cx + std::cos(northAngle) * 6.0f, cy + std::sin(northAngle) * 6.0f },
+        { cx - std::cos(northAngle) * 6.0f, cy - std::sin(northAngle) * 6.0f },
+        IM_COL32(240, 240, 240, 255));
+
+    // Center dot
+    draw->AddCircleFilled({ cx, cy }, 4.0f, IM_COL32(255, 255, 255, 255));
+
+    // N label
+    ImVec2 nPos = {
+        cx + std::sin(northAngle) * (r + 10.0f) - 4.0f,
+        cy - std::cos(northAngle) * (r + 10.0f) - 6.0f
+    };
+    draw->AddText(nPos, IM_COL32(255, 255, 255, 255), "N");
 }

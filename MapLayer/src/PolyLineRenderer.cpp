@@ -1,5 +1,4 @@
 #include "PolyLineRenderer.h"
-#include "PolyLineRenderer.h"
 #include "ShadersManager.h"
 #include "StateManager.h"
 
@@ -21,14 +20,17 @@ bool CPolyLineRenderer::Initialize()
     return true;
 }
 
-void CPolyLineRenderer::UploadRoads(const std::vector<STileRoadData>& roads, const CMapCamera& camera, int iScreenW, int iScreenH)
+void CPolyLineRenderer::UploadRoads(const std::vector<STileRoadData>& roads, const CMapCamera& camera)
 {
+    m_iUploadedZoom = camera.GetZoom();  // record it
+
     std::vector<SLinesVertex> verts;
     m_vLineCounts.clear();
     std::vector<uint32_t> indices;
 
     // Epsilon in screen pixels — higher = more simplification
-    float fEpsilon = std::max(1.0f, 8.0f - (float)camera.GetZoom() * 0.5f);
+    // float fEpsilon = std::max(1.0f, 8.0f - (float)camera.GetZoom() * 0.5f);
+    float fEpsilon = std::max(0.1f, 2.0f - (float)camera.GetZoom() * 0.1f);
 
     for (const STileRoadData& road : roads)
     {
@@ -36,24 +38,26 @@ void CPolyLineRenderer::UploadRoads(const std::vector<STileRoadData>& roads, con
         float fWidth = GetRoadWidth(road.sHighwayType, camera.GetZoom());
 
         // Convert to screen first
-        std::vector<Vector2D> screenPts;
-        screenPts.reserve(road.vLatLngPoints.size());
+        std::vector<Vector2D> worldPts;
+        worldPts.reserve(road.vLatLngPoints.size());
         for (const Vector2D& pt : road.vLatLngPoints)
         {
-            screenPts.push_back(camera.LatLngToScreen(pt.x, pt.y, iScreenW, iScreenH));
+            worldPts.push_back(Anubis::LatLngToPixel(pt.x, pt.y, camera.GetZoom()));
         }
 
         // Simplify
         std::vector<Vector2D> simplified;
-        Anubis::DouglasPeucker(screenPts, fEpsilon, simplified);
-
+        Anubis::DouglasPeucker(worldPts, fEpsilon, simplified);
         if (simplified.size() < 2)
         {
-            continue;
+           continue;
         }
 
-        // Build thick quad strip
-        BuildThickLine(simplified, fWidth, color, verts, indices);
+        int iSplineSegs = (m_iUploadedZoom >= 16) ? 8 : 4; // more segments at high zoom
+        std::vector<Vector2D> smooth = Anubis::CatmullRomSpline(simplified, iSplineSegs);
+
+        // Build thick line — but now with world px positions
+        BuildThickLine(smooth, fWidth, color, verts, indices);
     }
 
     syslog("UploadRoads: {} verts, {} indices", verts.size(), indices.size());
@@ -81,7 +85,10 @@ void CPolyLineRenderer::BuildThickLine(const std::vector<Vector2D>& pts, float f
         float dx = b.x - a.x;
         float dy = b.y - a.y;
         float len = std::sqrt(dx * dx + dy * dy);
-        if (len < 0.0001f) continue;
+        if (len < 0.5f)
+        {
+            continue;
+        }
 
         float nx = -dy / len * fHalf;
         float ny = dx / len * fHalf;
@@ -99,12 +106,17 @@ void CPolyLineRenderer::BuildThickLine(const std::vector<Vector2D>& pts, float f
     }
 }
 
-void CPolyLineRenderer::Render(int32_t iScreenW, int32_t iScreenH)
+void CPolyLineRenderer::Render(int32_t iScreenW, int32_t iScreenH, const CMapCamera& camera)
 {
     if (!m_bInitialized || m_iTotalIndices == 0)
     {
         // syserr("Failed to Render Polylines");
         return;
+    }
+
+    if (camera.GetZoom() != m_iUploadedZoom)
+    {
+        return;  // skip rendering stale data, wait for re-upload
     }
 
     auto* pShader = CShadersManager::Instance().GetShader("DebuggingRenderer"); // existing lines shader
@@ -122,9 +134,12 @@ void CPolyLineRenderer::Render(int32_t iScreenW, int32_t iScreenH)
         -1.0f, 1.0f
     );
 
+    Vector2D origin = camera.GetOriginWorldPixel(iScreenW, iScreenH);
+
     state.BindShader(pShader);
     pShader->SetBool("u_bRenderingPolyLines", true);
     pShader->SetMat4("u_Projection", proj);
+    pShader->SetVec2("u_CameraOrigin", origin.x, origin.y);  // updated every frame
 
     state.SetEngineCapability(GL_BLEND, false);
     state.SetEngineCapability(GL_DEPTH_TEST, false);

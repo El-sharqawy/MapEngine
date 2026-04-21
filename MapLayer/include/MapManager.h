@@ -4,9 +4,12 @@
 #include "TileGrid.h"
 #include "TileGridRenderer.h"
 #include "PolyLineRenderer.h"
+#include "PolyTriangulationRenderer.h"
 
 #include <mutex>
 #include <atomic>
+
+constexpr float MIN_REQUEST_INTERVAL_MS = 1500.0f; // 1.5s between any request
 
 class CMapManager : public CSingleton<CMapManager>
 {
@@ -21,6 +24,8 @@ public:
     void OnMouseDrag(float fDx, float fDy);
     void OnMouseScroll(float fDelta, float fMouseX, float fMouseY);
 
+    bool PostOverpassQuery(const std::string& query, std::string& outBody, const std::string& queryType);
+
     void FetchRoads(double minLat, double minLng, double maxLat, double maxLng);
     void ParseAndStoreRoads(const std::string& sJson);
     void FetchVisibleRoads();
@@ -34,10 +39,16 @@ public:
     int32_t GetPickedCount() const { return m_iPickedCount; }
     float GetDistance() const { return m_fDistance; }
 
+    void FetchVisibleBuildings();
+    std::vector<STileBuildingData> ParseBuildingsResponse(const std::string& json);
+
+    void RenderCompass();
+
 private:
     CTileGrid          m_tileGrid;
     CTileGridRenderer  m_tileGridRenderer;
     CPolyLineRenderer  m_polyLineRenderer;
+    CPolyTriangulationRenderer m_polyRenderer;
 
     CMapCamera         m_mapCamera;
 
@@ -53,10 +64,24 @@ private:
     std::atomic<bool> m_bRoadsDirty = false;
     float m_fRoadFetchCooldown = 1.0f;
     std::atomic<bool>  m_bNeedsRoadFetch = false;
-    std::atomic<bool> m_bFetchInProgress{ false };
+    std::atomic<bool> m_bFetchRoadsInProgress{ false };
 
+    // Picking
     bool m_bPickingPoint = false;
     int32_t m_iPickedCount = 0;
     Vector2D m_vPickedPoints[2];
     float m_fDistance = 0.0f;
+
+    // Buildings
+    std::mutex m_buildingsMutex;
+    std::vector<STileBuildingData> m_vPendingBuildings;
+    std::vector<STileBuildingData> m_vBuildings;
+    std::atomic<bool> m_bBuildingReady{ false };
+    std::atomic<bool> m_bBuildingsDirty{ false };
+    std::atomic<bool> m_bNeedsBuildingsFetch{ false };
+    std::atomic<bool> m_bFetchBuildingsInProgress{ false };
+    float m_fBulidingsFetchCooldown = 1.0f;
+
+    // timer
+    std::chrono::steady_clock::time_point m_lastOverpassRequest{};
 };
