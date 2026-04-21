@@ -18,6 +18,7 @@
 
 #include "DebugRenderer.h"
 #include "RendererManager.h"
+#include "UserInterface.h"
 
 #include "../../MapLayer/include/MapManager.h"
 
@@ -77,6 +78,7 @@ protected:
 	CShadersManager ShadersManager;
 
 	CMapManager MapManager;
+	CUserInterface UserInterface;
 
 private:
 	GLFWwindow* m_pGLWindow = nullptr;

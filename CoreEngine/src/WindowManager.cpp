@@ -192,8 +192,11 @@ void CWindowManager::Update()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// 4. Renderer Manager (Draw all 2D objects)
-		MapManager.Update(dt, m_iWidth, m_iHeight);
-		MapManager.Render(m_iWidth, m_iHeight);
+		CMapManager::Instance().Update(dt, m_iWidth, m_iHeight);
+		CMapManager::Instance().Render(m_iWidth, m_iHeight);
+
+		// 5. Render ImgUI on top of everything
+		CUserInterface::Instance().Render();
 
 		// 6. End Frame
 		glfwSwapBuffers(GetGLWindow());
@@ -335,14 +338,17 @@ void CWindowManager::ResizeWindow(int32_t iWidth, int32_t iHeight)
 
 void CWindowManager::InitializeSubSystems()
 {
-	// 0. Initialize OpenGL Debugging (if in debug mode)
+	// 1. Initialize OpenGL Debugging (if in debug mode)
 	CStateManager::Instance().Initialize();
 
-	// 1. Initialize Shaders Manager
+	// 2. Initialize Shaders Manager
 	CShadersManager::Instance().Initialize();
 
-	// Initialize Map Manager
-	MapManager.Initialize(m_iWidth, m_iHeight);
+	// 3. Initialize Map Manager
+	CMapManager::Instance().Initialize(m_iWidth, m_iHeight);
+
+	// 4. Initialize UserInterface
+	CUserInterface::Instance().Initialize();
 }
 
 void CWindowManager::framebuffer_size_callback(GLFWwindow* window, GLint width, GLint height)

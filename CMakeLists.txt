@@ -55,6 +55,7 @@ set(OPENSSL_SSL_LIBRARY    "C:/Program Files/OpenSSL-Win64/lib/VC/x64/MD/libssl.
 find_package(OpenSSL REQUIRED)
 
 # 1. Add the Libraries first so other things can link to it
+add_subdirectory(LibImageUI)
 add_subdirectory(AnubisMath)
 add_subdirectory(CoreEngine)
 add_subdirectory(MapLayer)
@@ -105,6 +106,7 @@ target_link_libraries(MapEngine PUBLIC
     CoreEngine
     AnubisRenderer
     MapLayer
+    LibImageUI
 )
 
 if (WIN32)

@@ -17,6 +17,7 @@ public:
     void Destroy();
 
     // Input
+    void OnMouseClick(float fMouseX, float fMouseY);
     void OnMouseDrag(float fDx, float fDy);
     void OnMouseScroll(float fDelta, float fMouseX, float fMouseY);
 
@@ -26,6 +27,12 @@ public:
 
     CMapCamera& GetCamera() { return m_mapCamera; }
     CTileGrid& GetTileGrid() { return m_tileGrid; }
+    bool IsPicking() const { return m_bPickingPoint; }
+    void StartPicking() { m_bPickingPoint = true; }
+    void StopPicking() { m_bPickingPoint = false; }
+
+    int32_t GetPickedCount() const { return m_iPickedCount; }
+    float GetDistance() const { return m_fDistance; }
 
 private:
     CTileGrid          m_tileGrid;
@@ -48,4 +55,8 @@ private:
     std::atomic<bool>  m_bNeedsRoadFetch = false;
     std::atomic<bool> m_bFetchInProgress{ false };
 
+    bool m_bPickingPoint = false;
+    int32_t m_iPickedCount = 0;
+    Vector2D m_vPickedPoints[2];
+    float m_fDistance = 0.0f;
 };

@@ -103,7 +103,7 @@ void CInputManager::OnMouseButton(int32_t button, bool pressed)
 		// Only trigger UI click on the initial press (not while holding)
 		if (button == GLFW_MOUSE_BUTTON_LEFT && m_bMouseKeys[button] == EKeyState::KEY_PRESSED)
 		{
-
+			CMapManager::Instance().OnMouseClick(m_v2MousePos.x, m_v2MousePos.y);
 		}
 	}
 	else

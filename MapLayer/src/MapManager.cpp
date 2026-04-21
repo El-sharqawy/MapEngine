@@ -81,6 +81,31 @@ void CMapManager::Destroy()
 }
 
 // Input
+void CMapManager::OnMouseClick(float fMouseX, float fMouseY)
+{
+    if (!m_bPickingPoint) // Picking is not active
+    {
+        return;
+    }
+
+    Vector2D origin = m_mapCamera.GetOriginWorldPixel(m_iScreenW, m_iScreenH);
+    Vector2D worldPx(origin.x + fMouseX, origin.y + fMouseY);
+    Vector2D latLng = Anubis::PixelToLatLng(worldPx.x, worldPx.y, m_mapCamera.GetZoom());
+
+    m_vPickedPoints[m_iPickedCount++] = latLng;
+
+    if (m_iPickedCount >= 2)
+    {
+        m_fDistance = Anubis::HaversineDistanceKm(
+            m_vPickedPoints[0].x, m_vPickedPoints[0].y,
+            m_vPickedPoints[1].x, m_vPickedPoints[1].y);
+
+        syslog("Distance: {:.2f} km", m_fDistance);
+        m_iPickedCount = 0;
+        m_bPickingPoint = false;
+    }
+}
+
 void CMapManager::OnMouseDrag(float fDx, float fDy)
 {
     m_mapCamera.Pan(fDx, fDy, m_iScreenW, m_iScreenH);

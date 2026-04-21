@@ -7,6 +7,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <glm/trigonometric.hpp>
 
 #undef min
 #undef max
@@ -211,6 +212,19 @@ namespace Anubis
             out.push_back(points.front());
             out.push_back(points.back());
         }
+    }
+
+    inline static float HaversineDistanceKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        constexpr double R = 6371.0; // Earth radius in km
+        double dLat = glm::radians(lat2 - lat1);
+        double dLng = glm::radians(lng2 - lng1);
+
+        double a = std::sin(dLat / 2) * std::sin(dLat / 2) +
+            std::cos(glm::radians(lat1)) * std::cos(glm::radians(lat2)) *
+            std::sin(dLng / 2) * std::sin(dLng / 2);
+
+        return (float)(2.0 * R * std::asin(std::sqrt(a)));
     }
 
 }
