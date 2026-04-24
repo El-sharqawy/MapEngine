@@ -3,6 +3,7 @@
 A real-time geospatial rendering engine built in C++20 with OpenGL. Renders OpenStreetMap raster tiles, roads, and buildings with interactive pan/zoom, coordinate transforms, and geometry processing — built as a take-home engineering task.
 
 ![MapEngine Demo](Assets/demo.png)
+![MapEngine Demo](Assets/demo2.png)
 
 ---
 
