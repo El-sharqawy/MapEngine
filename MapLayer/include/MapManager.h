@@ -84,4 +84,5 @@ private:
 
     // timer
     std::chrono::steady_clock::time_point m_lastOverpassRequest{};
+    std::mutex m_overpassMutex;
 };

@@ -182,21 +182,6 @@ void CTileGrid::UploadPendingTiles()
         STileReadyData ready = std::move(m_readyQueue.front());
         m_readyQueue.pop();
 
-        // DEBUG — write first tile to PNG to verify pixel data
-        static bool bWrittenOnce = false;
-        if (!bWrittenOnce)
-        {
-            bWrittenOnce = true;
-            stbi_write_png("debug_tile.png",
-                ready.imageData.iWidth,
-                ready.imageData.iHeight,
-                4,                        // channels (you load with 4)
-                ready.imageData.pData,
-                ready.imageData.iWidth * 4); // stride = width * 4 bytes
-            printf("[Debug] Written debug_tile.png (%dx%d)\n",
-                ready.imageData.iWidth, ready.imageData.iHeight);
-        }
-
         // Upload to GPU on main thread
         // Anubis::GL::UploadTextureDataToGPU(tex.GetTextureIDRef(), ready.imageData, GL_TEXTURE_2D, false, GL_UNSIGNED_BYTE);
         GLuint texID = 0;

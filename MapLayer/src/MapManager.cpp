@@ -11,13 +11,19 @@ bool CMapManager::Initialize(int iScreenW, int iScreenH)
     m_iScreenH = iScreenH;
 
     if (!m_tileGridRenderer.Initialize())
+    {
         return false;
+    }
 
     if (!m_polyLineRenderer.Initialize())
+    {
         return false;
+    }
 
     if (!m_polyRenderer.Initialize())
+    {
         return false;
+    }
 
     // Default center: Cairo
     m_mapCamera.SetCenter(30.0444, 31.2357);
@@ -178,6 +184,9 @@ void CMapManager::OnMouseScroll(float fDelta, float fMouseX, float fMouseY)
 
 bool CMapManager::PostOverpassQuery(const std::string& query, std::string& outBody, const std::string& queryType)
 {
+    // Serialize ALL overpass requests — only one at a time
+    std::lock_guard<std::mutex> lock(m_overpassMutex);
+
     // Global rate limit across all request types
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastOverpassRequest).count();

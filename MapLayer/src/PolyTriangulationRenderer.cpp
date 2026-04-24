@@ -138,7 +138,7 @@ void CPolyTriangulationRenderer::Render(int32_t iScreenW, int32_t iScreenH, cons
 
     state.BindVertexArray(m_uiVAO);
     glDrawElements(GL_TRIANGLES, m_iTotalIndices, GL_UNSIGNED_INT, 0);
-    syslog("Building Render: zoom={} uploadedZoom={} indices={} origin=({:.1f},{:.1f})", camera.GetZoom(), m_iUploadedZoom, m_iTotalIndices, m_uploadOrigin.x, m_uploadOrigin.y);
+    // syslog("Building Render: zoom={} uploadedZoom={} indices={} origin=({:.1f},{:.1f})", camera.GetZoom(), m_iUploadedZoom, m_iTotalIndices, m_uploadOrigin.x, m_uploadOrigin.y);
 
     state.BindVertexArray(0);
 
