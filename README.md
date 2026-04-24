@@ -36,7 +36,6 @@ MapEngine/
 ├── Main.cpp                    # Entry point, window + render loop
 ├── AnubisMath/                 # Vector math, coordinate transforms
 │   ├── Vector2D, Vector3D, Vector4D
-│   └── Anubis::LatLngToPixel, PixelToLatLng, HaversineDistanceKm
 ├── AnubisRenderer/             # Low-level OpenGL abstractions
 │   ├── BufferGroup             # VAO/VBO/EBO management
 │   ├── ShadersManager          # Shader compilation and caching
@@ -44,6 +43,7 @@ MapEngine/
 ├── CoreEngine/                 # Window, input, and engine lifecycle
 │   └── CWindowManager          # GLFW window + ImGui host
 ├── MapLayer/                   # All map-domain logic
+│   ├── CMapProjection          # Anubis::LatLngToPixel, PixelToLatLng, HaversineDistanceKm
 │   ├── CMapManager             # Orchestrates tile grid, roads, buildings
 │   ├── CMapCamera              # Pan/zoom, world pixel origin
 │   ├── CTileGrid               # Tile slot management and LRU eviction
