@@ -34,34 +34,50 @@ A real-time geospatial rendering engine built in C++20 with OpenGL. Renders Open
 
 ```
 MapEngine/
-├── Main.cpp                    # Entry point, window + render loop
-├── AnubisMath/                 # Vector math, coordinate transforms
-│   ├── Vector2D, Vector3D, Vector4D
-├── AnubisRenderer/             # Low-level OpenGL abstractions
-│   ├── BufferGroup             # VAO/VBO/EBO management
-│   ├── ShadersManager          # Shader compilation and caching
-│   └── StateManager            # OpenGL state machine wrapper
-├── CoreEngine/                 # Window, input, and engine lifecycle
-│   └── CWindowManager          # GLFW window + ImGui host
-├── MapLayer/                   # All map-domain logic
-│   ├── CMapProjection          # Anubis::LatLngToPixel, PixelToLatLng, HaversineDistanceKm
-│   ├── CMapManager             # Orchestrates tile grid, roads, buildings
-│   ├── CMapCamera              # Pan/zoom, world pixel origin
-│   ├── CTileGrid               # Tile slot management and LRU eviction
-│   ├── CTileGridRenderer       # Tile texture download and GL rendering
-│   ├── CPolyLineRenderer       # Road polyline rendering with DP simplification
-│   ├── CPolyTriangulationRenderer  # Building polygon triangulation + rendering
-│   └── CCompassRenderer        # Compass overlay (ImGui DrawList)
-├── LibImageUI/                 # STB image + ImGui integration
-└── Extern/                     # Third-party headers and prebuilt libs
-    ├── glfw3                   # Window and input
-    ├── glad                    # OpenGL function loader
-    ├── glm                     # Math (matrices, vectors)
-    ├── imgui                   # Immediate mode UI overlay
-    ├── nlohmann/json           # JSON parsing (Overpass responses)
-    ├── httplib                 # HTTP client (tile + Overpass fetches)
-    ├── mapbox/earcut.hpp       # Polygon triangulation
-    └── stb_image               # PNG tile decoding
+├── Main.cpp                        # Entry point, window + render loop
+├── AnubisMath/                     # Vector math, coordinate transforms
+│   ├── Vector2D, Vector3D, Vector4D ...
+├── AnubisRenderer/                 # Low-level OpenGL abstractions
+│   ├── BufferGroup                 # VAO/VBO/EBO management
+│   ├── Camera                      # Camera system (pan, zoom, view/projection matrix)
+│   ├── CameraManager               # Singleton camera manager
+│   ├── DebugRenderer               # Debug drawing utilities
+│   ├── GLUtils                     # OpenGL helper functions
+│   ├── RendererManager             # Central renderer orchestration
+│   ├── Shader                      # Shader compilation, linking, uniform management
+│   ├── Texture                     # Texture loading and GPU upload
+│   └── UniformBufferObject         # UBO management
+├── CoreEngine/                     # Window, input, and engine lifecycle
+│   ├── CoreUtils                   # Core utility macros and helpers
+│   ├── InputManager                # Keyboard and mouse input handling
+│   ├── LogManager                  # Logging and error reporting (syserr)
+│   ├── ShadersManager              # Shader compilation and caching
+│   ├── StateManager                # OpenGL state machine wrapper
+│   ├── TimerManager                # Frame delta time and timing
+│   ├── UserInterface               # ImGui overlay (FPS, compass, distance)
+│   └── WindowManager               # GLFW window creation and lifecycle
+├── MapLayer/                       # All map-domain logic
+│   ├── CoordTransform              # Coordinate conversion utilities (lat/lon ↔ world space)
+│   ├── MapCamera                   # Map-specific camera (geo-locked pan and zoom)
+│   ├── MapManager                  # Central map orchestration (tiles, features, layers)
+│   ├── MapProjection               # Web Mercator projection math
+│   ├── PolyLineRenderer            # Road and path rendering (polylines)
+│   ├── PolyTriangulationRenderer   # Building and area polygon rendering (earcut triangulation)
+│   ├── TileGrid                    # Tile grid data structure and tile lifecycle
+│   ├── TileGridRenderer            # GPU tile rendering (raster tile upload + draw)
+│   ├── TileIndex                   # Tile coordinate system (z/x/y indexing)
+│   └── CCompassRenderer            # Compass overlay (ImGui DrawList)
+├── LibImageUI/                     # ImGui integration
+└── Extern/                         # Third-party headers and prebuilt libs
+    ├── glfw3                       # Window and input
+    ├── glad                        # OpenGL function loader
+    ├── glm                         # Math (matrices, vectors)
+    ├── imgui                       # Immediate mode UI overlay
+    ├── nlohmann/json               # JSON parsing (Overpass responses)
+    ├── httplib                     # HTTP client (tile + Overpass fetches)
+    ├── mapbox/earcut.hpp           # Polygon triangulation
+    ├── openssl                     # Open SSL Include headers
+    └── stb_image                   # PNG tile decoding
 ```
 
 ### Key Design Decisions
@@ -72,7 +88,7 @@ MapEngine/
 
 **Threaded Overpass fetches** — Roads and buildings are fetched on detached background threads. Results are written to pending buffers and swapped onto the main thread at the start of each `Update()` frame via a mutex-protected ready flag. In-progress flags prevent duplicate concurrent fetches; a 30-second watchdog resets stuck flags.
 
-**Overpass rate limiting** — A global request timestamp enforces a minimum 1.5-second gap between any two Overpass requests. HTTP 429/504 responses trigger exponential backoff retry (up to 3 attempts: 3s, 6s, 9s).
+**Overpass rate limiting** — A global request timestamp enforces a minimum 1.5-second gap between any two Overpass requests. HTTP 429/504 responses trigger exponential backoff retry.
 
 ---
 
