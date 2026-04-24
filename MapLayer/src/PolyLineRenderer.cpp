@@ -46,18 +46,25 @@ void CPolyLineRenderer::UploadRoads(const std::vector<STileRoadData>& roads, con
         }
 
         // Simplify
-        std::vector<Vector2D> simplified;
-        Anubis::DouglasPeucker(worldPts, fEpsilon, simplified);
-        if (simplified.size() < 2)
+        if (m_bIsSimplified)
         {
-           continue;
+            std::vector<Vector2D> simplified;
+            Anubis::DouglasPeucker(worldPts, fEpsilon, simplified);
+            if (simplified.size() < 2)
+            {
+                continue;
+            }
+
+            int iSplineSegs = (m_iUploadedZoom >= 16) ? 8 : 4; // more segments at high zoom
+            std::vector<Vector2D> smooth = Anubis::CatmullRomSpline(simplified, iSplineSegs);
+
+            // Build thick line — but now with world px positions
+            BuildThickLine(smooth, fWidth, color, verts, indices);
         }
-
-        int iSplineSegs = (m_iUploadedZoom >= 16) ? 8 : 4; // more segments at high zoom
-        std::vector<Vector2D> smooth = Anubis::CatmullRomSpline(simplified, iSplineSegs);
-
-        // Build thick line — but now with world px positions
-        BuildThickLine(smooth, fWidth, color, verts, indices);
+        else
+        {
+            BuildThickLine(worldPts, fWidth, color, verts, indices);
+        }
     }
 
     syslog("UploadRoads: {} verts, {} indices", verts.size(), indices.size());

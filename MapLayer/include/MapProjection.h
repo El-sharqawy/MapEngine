@@ -7,6 +7,8 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 #include <glm/trigonometric.hpp>
 
 #undef min
@@ -127,6 +129,13 @@ namespace Anubis
         return std::fmod(bearing + 360.0, 360.0); // normalize to [0, 360)
     }
 
+    static inline std::string FmtCoord(double d)
+    {
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(7) << d;
+        return ss.str();
+    }
+
     inline static std::string BuildRoadsQuery(double minLat, double minLng,
         double maxLat, double maxLng,
         int iZoom)
@@ -140,19 +149,19 @@ namespace Anubis
         return "[out:json][timeout:30][maxsize:268435456];"
             "("
             "  way[\"highway\"~\"" + sFilter + "\"]"
-            "  (" + std::to_string(minLat) + "," + std::to_string(minLng) + ","
-            + std::to_string(maxLat) + "," + std::to_string(maxLng) + ");"
+            "  (" + FmtCoord(minLat) + "," + FmtCoord(minLng) + ","
+            + FmtCoord(maxLat) + "," + FmtCoord(maxLng) + ");"
             ");"
             "out geom;";
     }
 
     inline static std::string BuildBuildingsQuery(double minLat, double minLng, double maxLat, double maxLng)
     {
-        return "[out:json][timeout:25];"
+        return "[out:json][timeout:45][maxsize:134217728];"
             "("
             "  way[\"building\"](" +
-            std::to_string(minLat) + "," + std::to_string(minLng) + "," +
-            std::to_string(maxLat) + "," + std::to_string(maxLng) +
+            FmtCoord(minLat) + "," + FmtCoord(minLng) + "," +
+            FmtCoord(maxLat) + "," + FmtCoord(maxLng) +
             ");"
             ");"
             "out geom;";

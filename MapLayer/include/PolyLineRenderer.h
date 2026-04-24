@@ -26,6 +26,7 @@ private:
     GLuint m_uiQuadVAO = 0;
     Anubis::GL::SGPUBuffersGroup m_bufferGroup; // VBO / EBO
     bool m_bInitialized = false;
+    bool m_bIsSimplified = false;
 
     int32_t m_iTotalRoads;
     int32_t m_iTotalIndices;

@@ -1,21 +1,16 @@
 #version 460 core
 
-in vec2 TexCoord;
-in vec4 OverlayColor;
+in vec2 v_TexCoord;
+
+uniform sampler2D u_Texture;
+uniform vec4      u_Color;     // tint (1,1,1,1) = no tint
+uniform bool      u_HasTexture = false;
+uniform float u_Alpha;  // 0.0 = invisible, 1.0 = fully loaded
 
 out vec4 FragColor;
 
-uniform sampler2D u_Texture;
-
 void main()
 {
-    // Sample the UI Texture Atlas
-    vec4 sampled = texture(u_Texture, TexCoord);
-    
-    // Multiply by the UI Element's color (tint + alpha)
-    FragColor = OverlayColor; //sampled;
-
-    // Optimization: If the alpha is essentially zero, discard to save on blending
-    if(FragColor.a < 0.001)
-        discard;
+    vec4 color = u_HasTexture ? texture(u_Texture, v_TexCoord) : u_Color;
+    FragColor = vec4(color.rgb, color.a * u_Alpha);
 }

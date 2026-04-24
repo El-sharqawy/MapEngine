@@ -8,7 +8,7 @@
 #undef minmax
 #endif
 
-#define ENGINE_VERSION "Anubis Engine v1.0.0"
+#define ENGINE_VERSION "Map Engine v1.0.0"
 
 /**
  * @brief Initializes Variables and ImGui context and configures settings.
@@ -175,7 +175,7 @@ void CUserInterface::RenderMainMenuBar()
  */
 void CUserInterface::RenderEngineMainUI()
 {
-	ImGui::Begin("Terrain Tools");
+	ImGui::Begin("UI Tools");
 	if (ImGui::BeginTabBar("##MainEditorTabs", ImGuiTabBarFlags_None))
 	{
 		if (ImGui::BeginTabItem("Engine"))

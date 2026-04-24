@@ -290,8 +290,8 @@ void CMapManager::FetchVisibleRoads()
         origin.y + m_iScreenH,
         m_mapCamera.GetZoom());
 
-    syslog("Fetching roads bbox: minLat={} minLng={} maxLat={} maxLng={}",
-        bottomRight.x, topLeft.y, topLeft.x, bottomRight.y);
+    syslog("Fetching roads bbox: minLat={} minLng={} maxLat={} maxLng={} with Zoom={}",
+        bottomRight.x, topLeft.y, topLeft.x, bottomRight.y, iZoom);
 
     // topLeft.x = maxLat, bottomRight.x = minLat (Y flips in Mercator)
     float pad = (iZoom >= 15) ? 0.015f : 0.008f;  // was 0.008/0.003
@@ -315,8 +315,8 @@ void CMapManager::FetchVisibleBuildings()
 
     std::string query = Anubis::BuildBuildingsQuery(minLat, minLng, maxLat, maxLng);
 
-    syslog("Fetching Buildings bbox: minLat={} minLng={} maxLat={} maxLng={}",
-        minLat, minLng, maxLat, maxLng);
+    syslog("Fetching buildings bbox: minLat={} minLng={} maxLat={} maxLng={} with Zoom={}",
+        minLat, minLng, maxLat, maxLng, iZoom);
 
     std::thread([this, query]()
         {
